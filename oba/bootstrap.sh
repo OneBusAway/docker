@@ -2,17 +2,9 @@
 
 # Build bundle inside the container
 if [ -n "$GTFS_URL" ]; then
-    echo "GTFS_URL is set, building bundle..."
-    echo "OBA Bundle Builder Starting"
-    echo "GTFS_URL: $GTFS_URL"
-    echo "OBA Version: $OBA_VERSION"
+    echo "GTFS_URL is set, building bundle from bootstrap.sh with build_bundle.sh"
     mkdir -p /bundle
-    wget -O /bundle/gtfs.zip "$GTFS_URL"
-    cd /bundle \
-        && java -Xss4m -Xmx2g \
-            -jar /oba/libs/onebusaway-transit-data-federation-builder-withAllDependencies.jar \
-            ./gtfs.zip \
-            .
+    /oba/build_bundle.sh
 fi
 
 # For users who want to configure the data-sources.xml file and database themselves

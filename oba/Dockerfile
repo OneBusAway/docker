@@ -1,25 +1,40 @@
-###########
-# Builder #
-###########
-
-FROM tomcat:8.5.100-jdk11-temurin AS builder
-
 ARG OBA_VERSION=2.5.13-otsf
-ENV OBA_VERSION=${OBA_VERSION}
-
-ARG MYSQL_CONNECTOR_VERSION=8.4.0
-ENV MYSQL_CONNECTOR_VERSION=${MYSQL_CONNECTOR_VERSION}
-
 ARG POSTGRESQL_CONNECTOR_VERSION=42.7.4
-ENV POSTGRESQL_CONNECTOR_VERSION=${POSTGRESQL_CONNECTOR_VERSION}
+ARG MYSQL_CONNECTOR_VERSION=8.4.0
 
-RUN apt-get update && \
-    apt-get install -y maven golang
+##############
+# Go Builder #
+##############
+
+FROM golang:1.24.1-bookworm AS gobuilder
+
+# Install gtfstidy - https://github.com/patrickbr/gtfstidy
+WORKDIR /src
+COPY ./set_goarch.sh .
+RUN ./set_goarch.sh
+RUN CGO_ENABLED=0 go install github.com/patrickbr/gtfstidy@latest
 
 # Build the template renderer, which is called hbs_renderer
 WORKDIR /oba/template_renderer
 COPY ./config/template_renderer .
-RUN go build -o hbs_renderer
+RUN CGO_ENABLED=0 go build -o hbs_renderer
+
+################
+# Java Builder #
+################
+
+FROM tomcat:8.5.100-jdk11-temurin AS builder
+
+ARG OBA_VERSION
+ENV OBA_VERSION=${OBA_VERSION}
+
+ARG POSTGRESQL_CONNECTOR_VERSION
+ENV POSTGRESQL_CONNECTOR_VERSION=${POSTGRESQL_CONNECTOR_VERSION}
+
+ARG MYSQL_CONNECTOR_VERSION
+ENV MYSQL_CONNECTOR_VERSION=${MYSQL_CONNECTOR_VERSION}
+
+RUN apt-get update && apt-get install -y maven
 
 # Start configuring OBA
 WORKDIR /oba/libs
@@ -43,6 +58,16 @@ RUN ./retrieve_maven_artifacts.sh
 
 FROM tomcat:8.5.100-jdk11-temurin AS server
 
+ENV GTFS_TIDY_ARGS=${GTFS_TIDY_ARGS}
+ARG OBA_VERSION=2.5.13-otsf
+
+
+ENV POSTGRESQL_CONNECTOR_VERSION=${POSTGRESQL_CONNECTOR_VERSION}
+ENV MYSQL_CONNECTOR_VERSION=${MYSQL_CONNECTOR_VERSION}
+
+ARG OBA_VERSION
+ENV OBA_VERSION=${OBA_VERSION}
+
 ENV CATALINA_HOME=/usr/local/tomcat
 ENV TZ=America/New_York
 
@@ -57,13 +82,16 @@ RUN apt-get update && apt-get install -y \
     supervisor \
     tzdata \
     unzip \
+    wget \
+    zip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install supervisord-dependent-startup
 RUN apt remove -y python3-pip
 
-COPY --from=builder /oba/template_renderer/hbs_renderer /usr/local/bin/hbs_renderer
+COPY --from=gobuilder /oba/template_renderer/hbs_renderer /usr/local/bin/hbs_renderer
+COPY --from=gobuilder /go/bin/gtfstidy /usr/local/bin/gtfstidy
 
 # Set the configured time zone
 RUN ln -fs /usr/share/zoneinfo/$TZ /etc/localtime && dpkg-reconfigure -f noninteractive tzdata
@@ -157,8 +185,6 @@ COPY --from=builder \
 RUN apt-get autoremove -y && apt-get clean
 RUN rm -rf /oba/webapps
 
-
-
 # Jmx exporter
 
 RUN mkdir -p /app && \
@@ -168,15 +194,13 @@ COPY ./jmx_exporter_config.yml /app/jmx_exporter_config.yml
 # Set JVM options to include JMX exporter
 ENV JAVA_OPTS="-javaagent:/app/jmx_prometheus_javaagent.jar=1234:/app/jmx_exporter_config.yml"
 
-
 ##########
 # Bootstrapper and Supervisor
 ##########
 
-
 COPY bootstrap.sh /oba/bootstrap.sh
+COPY build_bundle.sh /oba/build_bundle.sh
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-RUN chmod +x /oba/bootstrap.sh
 
 # CMD ["tail", "-f", "/dev/null"]
 CMD ["supervisord", "-n"]
