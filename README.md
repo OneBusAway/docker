@@ -26,8 +26,6 @@ To build bundles and run the webapp server with your own GTFS feed, use the [Doc
 
 ### Building the app server
 
-The app server and bundle builder use Maven artifacts from GitHub's Maven package registry, which unfortunately requires authentication. This is provided in the form of a pair of environment variables that must be supplied when building the app server image:
-
 ```bash
 docker compose build oba_app
 ```

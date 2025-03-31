@@ -44,6 +44,7 @@ services:
       - TEST_API_KEY=test # For test only, remove in production
       - TZ=America/Los_Angeles
       - GTFS_URL=https://unitrans.ucdavis.edu/media/gtfs/Unitrans_GTFS.zip
+      - GTFS_TIDY_ARGS=v
 
     ports:
       # Access the webapp on your host machine at a path like
