@@ -27,7 +27,7 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: linux/amd64,linux/arm64
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v3
@@ -48,7 +48,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.context }}
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: linux/amd64,linux/arm64
           push: true
           # for versioning, use the git sha
           tags: |
@@ -78,7 +78,7 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: linux/amd64,linux/arm64
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v3
@@ -98,7 +98,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.context }}
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             opentransitsoftwarefoundation/${{ matrix.name }}:${{ env.IMAGE_TAG }}
