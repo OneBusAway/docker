@@ -9,9 +9,6 @@ case $ARCH in
     aarch64|arm64)
         GOARCH=arm64
         ;;
-    armv7*)
-        GOARCH=arm
-        ;;
     i386|i686)
         GOARCH=386
         ;;
