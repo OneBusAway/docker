@@ -1,3 +1,5 @@
 ci-bundle
 bundle
 .DS_Store
+.claude
+example-local-gtfs/*.zip

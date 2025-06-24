@@ -16,8 +16,14 @@
 # limitations under the License.
 #
 
-if [ -z "$GTFS_URL" ]; then
-    echo "GTFS_URL is not set"
+# Check that either GTFS_URL or GTFS_ZIP_FILENAME is set, but not both
+if [ -n "$GTFS_URL" ] && [ -n "$GTFS_ZIP_FILENAME" ]; then
+    echo "Error: Both GTFS_URL and GTFS_ZIP_FILENAME are set. Please provide only one."
+    exit 1
+fi
+
+if [ -z "$GTFS_URL" ] && [ -z "$GTFS_ZIP_FILENAME" ]; then
+    echo "Error: Neither GTFS_URL nor GTFS_ZIP_FILENAME is set. Please provide one."
     exit 1
 fi
 
@@ -35,17 +41,33 @@ TDF_BUILDER_JAR=${TDF_BUILDER_JAR:-/oba/libs/onebusaway-transit-data-federation-
 # -D: drop erroneous entries from feed
 GTFS_TIDY_ARGS=${GTFS_TIDY_ARGS:-OscRCSmeD}
 
-GTFS_ZIP_FILENAME="gtfs_pristine.zip"
+# Set default filename if using GTFS_URL
+if [ -n "$GTFS_URL" ]; then
+    GTFS_ZIP_FILENAME="gtfs_pristine.zip"
+fi
 
 echo "OBA Bundle Builder Starting"
-echo "GTFS_URL: $GTFS_URL"
+if [ -n "$GTFS_URL" ]; then
+    echo "GTFS_URL: $GTFS_URL"
+else
+    echo "GTFS_ZIP_FILENAME: $GTFS_ZIP_FILENAME"
+fi
 echo "OBA Version: $OBA_VERSION"
 echo "GTFS Tidy Args: $GTFS_TIDY_ARGS"
 echo "TDF_BUILDER_JAR: $TDF_BUILDER_JAR"
 
 cd /bundle
 
-wget -O ${GTFS_ZIP_FILENAME} ${GTFS_URL}
+# Download GTFS file if URL is provided, otherwise use local file
+if [ -n "$GTFS_URL" ]; then
+    wget -O ${GTFS_ZIP_FILENAME} ${GTFS_URL}
+else
+    # Check if the local file exists
+    if [ ! -f "$GTFS_ZIP_FILENAME" ]; then
+        echo "Error: GTFS file not found: $GTFS_ZIP_FILENAME"
+        exit 1
+    fi
+fi
 
 gtfstidy -${GTFS_TIDY_ARGS} ${GTFS_ZIP_FILENAME}
 

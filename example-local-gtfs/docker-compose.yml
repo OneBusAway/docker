@@ -1,0 +1,67 @@
+services:
+  oba_database_pg:
+    image: postgres:16
+    container_name: oba_database_pg
+    environment:
+      POSTGRES_USER: oba_user
+      POSTGRES_PASSWORD: oba_password
+      POSTGRES_DB: oba_database
+    ports:
+      - "5432:5432"
+    volumes:
+      - type: volume
+        source: pg-data
+        target: /var/lib/postgresql/data
+    restart: always
+
+  # Bundle builder that uses local GTFS file
+  oba_bundler:
+    container_name: oba_bundler
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      # Use local GTFS file instead of downloading
+      - GTFS_ZIP_FILENAME=gtfs.zip
+      - TZ=America/Los_Angeles
+      - GTFS_TIDY_ARGS=OscRCSmeD
+    volumes:
+      - type: bind
+        source: ../bundle
+        target: /bundle
+    command: ["/oba/build_bundle.sh"]
+
+  oba_app:
+    container_name: oba_app
+    depends_on:
+      - oba_database_pg
+    build:
+      context: ../oba
+    environment:
+      - JDBC_URL=jdbc:postgresql://oba_database_pg:5432/oba_database
+      - JDBC_DRIVER=org.postgresql.Driver
+      - JDBC_USER=oba_user
+      - JDBC_PASSWORD=oba_password
+      - TEST_API_KEY=test # For test only, remove in production
+      - TZ=America/Los_Angeles
+      - GTFS_TIDY_ARGS=v
+      # Note: No GTFS_URL since we're using pre-downloaded GTFS data
+    volumes:
+      - type: bind
+        source: ../bundle
+        target: /bundle
+    ports:
+      # Access the webapp on your host machine at a path like
+      # http://localhost:8080/onebusaway-api-webapp/api/where/agency/${YOUR_AGENCY}.json?key=TEST
+      - "8080:8080"
+      - "1234:1234"  # JMX exporter port
+
+# Uncomment the following section to test with prometheus and the JMX exporter in localhost
+# networks:
+#   monitoring:
+#     external: true
+
+
+volumes:
+  mysql-data:
+  pg-data:

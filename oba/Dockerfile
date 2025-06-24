@@ -6,7 +6,7 @@ ARG MYSQL_CONNECTOR_VERSION=8.4.0
 # Go Builder #
 ##############
 
-FROM golang:1.24.1-bookworm AS gobuilder
+FROM golang:1.24.4-bookworm AS gobuilder
 
 # Install gtfstidy - https://github.com/patrickbr/gtfstidy
 WORKDIR /src
@@ -58,10 +58,14 @@ RUN ./retrieve_maven_artifacts.sh
 
 FROM tomcat:8.5.100-jdk11-temurin AS server
 
+ARG GTFS_TIDY_ARGS
 ENV GTFS_TIDY_ARGS=${GTFS_TIDY_ARGS}
 ARG OBA_VERSION=2.6.0
 
+ARG POSTGRESQL_CONNECTOR_VERSION
 ENV POSTGRESQL_CONNECTOR_VERSION=${POSTGRESQL_CONNECTOR_VERSION}
+
+ARG MYSQL_CONNECTOR_VERSION
 ENV MYSQL_CONNECTOR_VERSION=${MYSQL_CONNECTOR_VERSION}
 
 ARG OBA_VERSION

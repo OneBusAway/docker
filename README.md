@@ -63,6 +63,10 @@ You will then have two web apps available:
 
 When done using this web server, you can use the shell-standard `^C` to exit out and turn it off. If issues persist across runs, you can try using `docker compose down -v` and then `docker compose up oba_app` to refresh the Docker containers and services.
 
+### Using local GTFS files
+
+If you have a local GTFS file instead of downloading from a URL, see the [`example-local-gtfs/`](example-local-gtfs/) directory for a complete example that demonstrates how to build bundles using local GTFS files.
+
 ### Inspecting the database
 
 The Docker Compose database service should remain up after a call of `docker compose up oba_app`. Otherwise, you can always invoke it using `docker compose up oba_database`.

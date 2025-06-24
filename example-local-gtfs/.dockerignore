@@ -1,0 +1,10 @@
+# Ignore everything except GTFS files and Docker-related files
+*
+!*.zip
+!*.gtfs
+!Dockerfile
+!docker-entrypoint.sh
+
+# But still ignore these even if they're zip files
+!backup*.zip
+!old*.zip
