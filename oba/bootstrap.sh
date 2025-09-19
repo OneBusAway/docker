@@ -46,8 +46,33 @@ else
     HAS_API_KEY=""
 fi
 
+# Handle AGENCY_ID_LIST properly - if it's a JSON array, use it directly, otherwise treat as empty
+if [ -n "$AGENCY_ID_LIST" ]; then
+    # Remove the outer quotes if they exist and use the array directly
+    AGENCY_ID_LIST_JSON="$AGENCY_ID_LIST"
+else
+    AGENCY_ID_LIST_JSON="[]"
+fi
+
+# Build the JSON string with proper handling of AGENCY_ID_LIST
+JSON_CONFIG=$(cat <<EOF
+{
+    "GTFS_RT_AVAILABLE": "$GTFS_RT_AVAILABLE",
+    "TRIP_UPDATES_URL": "$TRIP_UPDATES_URL",
+    "VEHICLE_POSITIONS_URL": "$VEHICLE_POSITIONS_URL",
+    "ALERTS_URL": "$ALERTS_URL",
+    "REFRESH_INTERVAL": "$REFRESH_INTERVAL",
+    "AGENCY_ID": "$AGENCY_ID",
+    "AGENCY_ID_LIST": $AGENCY_ID_LIST_JSON,
+    "HAS_API_KEY": "$HAS_API_KEY",
+    "FEED_API_KEY": "$FEED_API_KEY",
+    "FEED_API_VALUE": "$FEED_API_VALUE"
+}
+EOF
+)
+
 hbs_renderer -input "$FEDERATION_XML_SOURCE" \
-             -json '{"GTFS_RT_AVAILABLE": "'$GTFS_RT_AVAILABLE'", "TRIP_UPDATES_URL": "'$TRIP_UPDATES_URL'", "VEHICLE_POSITIONS_URL": "'$VEHICLE_POSITIONS_URL'", "ALERTS_URL": "'$ALERTS_URL'", "REFRESH_INTERVAL": "'$REFRESH_INTERVAL'", "AGENCY_ID": "'$AGENCY_ID'", "HAS_API_KEY": "'$HAS_API_KEY'", "FEED_API_KEY": "'$FEED_API_KEY'", "FEED_API_VALUE": "'$FEED_API_VALUE'"}' \
+             -json "$JSON_CONFIG" \
              -output "$FEDERATION_XML_DESTINATION"
 
 #####

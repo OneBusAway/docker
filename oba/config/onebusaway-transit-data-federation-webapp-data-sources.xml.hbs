@@ -64,7 +64,17 @@
         <property name="refreshInterval" value="{{ REFRESH_INTERVAL }}" />
       {{/if}}
 
-      <property name="agencyId" value="{{ AGENCY_ID }}" />
+      {{#if AGENCY_ID_LIST}}
+        <property name="agencyIds">
+          <list>
+            {{#each AGENCY_ID_LIST}}
+              <value>{{ this }}</value>
+            {{/each}}
+          </list>
+        </property>
+      {{else}}
+        <property name="agencyId" value="{{ AGENCY_ID }}" />
+      {{/if}}
 
       {{#if HAS_API_KEY}}
         <property name="headersMap">
