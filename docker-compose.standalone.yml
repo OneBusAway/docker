@@ -43,8 +43,9 @@ services:
       - JDBC_PASSWORD=oba_password
       - TEST_API_KEY=test # For test only, remove in production
       - TZ=America/Los_Angeles
+      - AGENCY_ID=unitrans
       - GTFS_URL=https://unitrans.ucdavis.edu/media/gtfs/Unitrans_GTFS.zip
-      - GTFS_TIDY_ARGS=v
+      - GTFS_TIDY_ARGS=OeD
 
     ports:
       # Access the webapp on your host machine at a path like

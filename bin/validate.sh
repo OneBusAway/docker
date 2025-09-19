@@ -1,6 +1,9 @@
 #!/bin/bash
 
-output=$(curl -s "http://localhost:8080/api/where/current-time.json?key=test" | jq '.data.entry.time')
+# Timeout for curl requests in seconds
+CURL_TIMEOUT=120
+
+output=$(curl -s --max-time $CURL_TIMEOUT "http://localhost:8080/api/where/current-time.json?key=test" | jq '.data.entry.time')
 
 if [[ ! -z "$output" && "$output" =~ ^[0-9]+$ ]]; then
     echo "current-time.json endpoint works."
@@ -10,7 +13,20 @@ else
 fi
 
 # Get the first agency from agencies-with-coverage
-agency_response=$(curl -s "http://localhost:8080/api/where/agencies-with-coverage.json?key=test")
+agency_response=$(curl -s --max-time $CURL_TIMEOUT "http://localhost:8080/api/where/agencies-with-coverage.json?key=test")
+
+# Debug: Show raw response if empty or small
+if [[ -z "$agency_response" || ${#agency_response} -lt 100 ]]; then
+    echo "Debug: Raw agency response: '$agency_response'"
+fi
+
+# Check if response is valid JSON
+if ! echo "$agency_response" | jq empty 2>/dev/null; then
+    echo "Error: Invalid JSON response from agencies-with-coverage endpoint"
+    echo "Response: $agency_response"
+    exit 1
+fi
+
 agency_count=$(echo "$agency_response" | jq '.data.list | length')
 
 if [[ "$agency_count" -gt 0 ]]; then
@@ -23,7 +39,7 @@ else
 fi
 
 # Get routes for the agency
-routes_response=$(curl -s "http://localhost:8080/api/where/routes-for-agency/${AGENCY_ID}.json?key=test")
+routes_response=$(curl -s --max-time $CURL_TIMEOUT "http://localhost:8080/api/where/routes-for-agency/${AGENCY_ID}.json?key=test")
 route_count=$(echo "$routes_response" | jq '.data.list | length')
 if [[ "$route_count" -gt 0 ]]; then
     echo "routes-for-agency/${AGENCY_ID}.json endpoint works (found $route_count routes)."
@@ -35,7 +51,7 @@ else
 fi
 
 # Get stops for the route
-stops_response=$(curl -s "http://localhost:8080/api/where/stops-for-route/${ROUTE_ID}.json?key=test")
+stops_response=$(curl -s --max-time $CURL_TIMEOUT "http://localhost:8080/api/where/stops-for-route/${ROUTE_ID}.json?key=test")
 route_id_check=$(echo "$stops_response" | jq -r '.data.entry.routeId')
 if [[ ! -z "$route_id_check" && "$route_id_check" == "$ROUTE_ID" ]]; then
     echo "stops-for-route/${ROUTE_ID}.json endpoint works."
@@ -47,7 +63,7 @@ else
 fi
 
 # Get stop details
-stop_response=$(curl -s "http://localhost:8080/api/where/stop/${STOP_ID}.json?key=test")
+stop_response=$(curl -s --max-time $CURL_TIMEOUT "http://localhost:8080/api/where/stop/${STOP_ID}.json?key=test")
 stop_id_check=$(echo "$stop_response" | jq -r '.data.entry.id')
 if [[ ! -z "$stop_id_check" && "$stop_id_check" == "$STOP_ID" ]]; then
     echo "stop/${STOP_ID}.json endpoint works."
@@ -62,7 +78,7 @@ fi
 
 # Test stops-for-location using coordinates from the stop
 LOCATION_URL="http://localhost:8080/api/where/stops-for-location.json?lat=${STOP_LAT}&lon=${STOP_LON}&key=test"
-location_response=$(curl -s "$LOCATION_URL")
+location_response=$(curl -s --max-time $CURL_TIMEOUT "$LOCATION_URL")
 out_of_range=$(echo "$location_response" | jq '.data.outOfRange')
 stops_found=$(echo "$location_response" | jq '.data.list | length')
 if [[ ! -z "$out_of_range" && "$out_of_range" == "false" && "$stops_found" -gt 0 ]]; then
@@ -75,7 +91,7 @@ else
 fi
 
 # Test arrivals-and-departures-for-stop endpoint
-arrivals_response=$(curl -s "http://localhost:8080/api/where/arrivals-and-departures-for-stop/${STOP_ID}.json?key=test")
+arrivals_response=$(curl -s --max-time $CURL_TIMEOUT "http://localhost:8080/api/where/arrivals-and-departures-for-stop/${STOP_ID}.json?key=test")
 arrivals_stop_id=$(echo "$arrivals_response" | jq -r '.data.entry.stopId')
 arrivals_count=$(echo "$arrivals_response" | jq '.data.entry.arrivalsAndDepartures | length // 0')
 
