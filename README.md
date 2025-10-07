@@ -10,6 +10,10 @@ for use with [Docker](https://www.docker.com/).
 
 Check out our [onebusaway-deployment](https://github.com/oneBusAway/onebusaway-deployment) repository, which features OpenTofu (Terraform) IaC configuration for deploying OneBusAway to AWS, Azure, Google Cloud Platform, Render, Kubernetes, and other platforms.
 
+### Deploying Docker Images
+
+The 'simplest' way to deploy to services compatible with Docker image deployment is by creating immutable Docker images with your static data bundle pre-generated inside of the image. [See deployment-examples/README.md for more information](deployment-examples/README.md).
+
 ### Deploy to Render
 
 [Render](https://www.render.com) is an easy-to-use Platform-as-a-Service (PaaS) provider. You can host OneBusAway on Render by either manually configuring it or by clicking the button below.
