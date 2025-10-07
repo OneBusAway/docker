@@ -1,0 +1,32 @@
+services:
+  oba_database_pg:
+    image: postgres:16
+    container_name: oba_database_pg
+    environment:
+      POSTGRES_USER: oba_user
+      POSTGRES_PASSWORD: oba_password
+      POSTGRES_DB: oba_database
+    ports:
+      - "5432:5432"
+    volumes:
+      - type: volume
+        source: pg-data
+        target: /var/lib/postgresql/data
+    restart: always
+
+  oba_app:
+    depends_on:
+      - oba_database_pg
+    build:
+      dockerfile: Dockerfile.mbta
+    environment:
+      - JDBC_URL=jdbc:postgresql://oba_database_pg:5432/oba_database
+      - JDBC_DRIVER=org.postgresql.Driver
+      - JDBC_USER=oba_user
+      - JDBC_PASSWORD=oba_password
+
+    ports:
+      - "8080:8080"
+
+volumes:
+  pg-data:
