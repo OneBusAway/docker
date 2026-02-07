@@ -68,7 +68,7 @@ docker compose up
 ### Key Technologies
 
 - **Build System**: Maven-based Java project
-- **OneBusAway Version**: v2.6.0 (configurable via OBA_VERSION)
+- **OneBusAway Version**: v2.7.0 (configurable via OBA_VERSION)
 - **Runtime**: Tomcat 8.5.100 with JDK 11
 - **Databases**: MySQL 8.0 or PostgreSQL 16
 - **GTFS Processing**: gtfstidy (Go-based optimizer)
