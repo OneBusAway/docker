@@ -106,7 +106,7 @@ You can find the latest published Docker images on Docker Hub:
   * `VEHICLE_POSITIONS_URL` - Vehicle Positions URL for GTFS-RT.
   * `REFRESH_INTERVAL` - Refresh interval in seconds. Usually 10-30.
   * Specify one or the other:
-    * `AGENCY_ID_LIST` - Your GTFS-RT agency IDs. These should match the IDs in your agency.txt file. Format: abxoxo
+    * `AGENCY_ID_LIST` - Your GTFS-RT agency IDs. These should match the IDs in your agency.txt file. Format: `["id1","id2"]`
     * `AGENCY_ID` - Optional: Your GTFS-RT agency ID. Ostensibly the same as your GTFS agency ID.
   * Authentication (Optional)
     * Example: Specifying `FEED_API_KEY` = `X-API-KEY` and `FEED_API_VALUE` = `12345` will result in `X-API-KEY: 12345` being passed on every call to your GTFS-RT URLs.
