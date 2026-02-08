@@ -40,6 +40,10 @@ copy_and_rename_artifact \
     "onebusaway-transit-data-federation-builder-withAllDependencies"
 
 copy_and_rename_artifact \
+    "org.onebusaway:onebusaway-api-key-cli:${OBA_VERSION}:jar:withAllDependencies" \
+    "onebusaway-api-key-cli-withAllDependencies"
+
+copy_and_rename_artifact \
     "com.mysql:mysql-connector-j:${MYSQL_CONNECTOR_VERSION}:jar" \
     "mysql-connector-j"
 

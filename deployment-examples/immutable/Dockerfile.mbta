@@ -1,17 +1,18 @@
 # Inherit from the base onebusaway image
-FROM opentransitsoftwarefoundation/onebusaway-api-webapp:2.6.0-latest
+FROM opentransitsoftwarefoundation/onebusaway-api-webapp:2.7.1-latest
 
 COPY config/tdf-log4j2.xml /usr/local/tomcat/webapps/onebusaway-transit-data-federation-webapp/WEB-INF/classes/log4j2.xml
 
 # Set environment variables permanently
 ENV JDBC_DRIVER="org.postgresql.Driver"
 ENV TZ="America/New_York"
-ENV GTFS_URL="https://cdn.mbta.com/MBTA_GTFS.zip"
-ENV ALERTS_URL="https://cdn.mbta.com/realtime/Alerts.pb"
-ENV TRIP_UPDATES_URL="https://cdn.mbta.com/realtime/TripUpdates.pb"
-ENV VEHICLE_POSITIONS_URL="https://cdn.mbta.com/realtime/VehiclePositions.pb"
+ENV GTFS_URL="https://passio3.com/uconn/passioTransit/gtfs/google_transit.zip"
+ENV ALERTS_URL="https://passio3.com/uconn/passioTransit/gtfs/realtime/serviceAlerts"
+ENV TRIP_UPDATES_URL="https://passio3.com/uconn/passioTransit/gtfs/realtime/tripUpdates"
+ENV VEHICLE_POSITIONS_URL="https://passio3.com/uconn/passioTransit/gtfs/realtime/vehiclePositions"
 ENV REFRESH_INTERVAL="30"
-ENV AGENCY_ID_LIST='["1","3"]'
+ENV AGENCY_ID_LIST="1541"
+# ENV AGENCY_ID_LIST='["1541"]'
 ENV REVISION="1"
 
 # Set these at runtime:
