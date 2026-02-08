@@ -1,4 +1,4 @@
-ARG OBA_VERSION=2.7.0
+ARG OBA_VERSION=2.7.1
 
 ##############
 # Go Builder #

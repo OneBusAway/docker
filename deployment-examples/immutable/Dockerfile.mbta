@@ -1,5 +1,5 @@
 # Inherit from the base onebusaway image
-FROM opentransitsoftwarefoundation/onebusaway-api-webapp:2.6.0-latest
+FROM opentransitsoftwarefoundation/onebusaway-api-webapp:2.7.1-latest
 
 COPY config/tdf-log4j2.xml /usr/local/tomcat/webapps/onebusaway-transit-data-federation-webapp/WEB-INF/classes/log4j2.xml
 

@@ -1,4 +1,4 @@
-ARG OBA_VERSION=2.7.0
+ARG OBA_VERSION=2.7.1
 ARG POSTGRESQL_CONNECTOR_VERSION=42.7.4
 ARG MYSQL_CONNECTOR_VERSION=8.4.0
 
@@ -60,7 +60,7 @@ FROM tomcat:8.5.100-jdk11-temurin AS server
 
 ARG GTFS_TIDY_ARGS
 ENV GTFS_TIDY_ARGS=${GTFS_TIDY_ARGS}
-ARG OBA_VERSION=2.7.0
+ARG OBA_VERSION=2.7.1
 
 ARG POSTGRESQL_CONNECTOR_VERSION
 ENV POSTGRESQL_CONNECTOR_VERSION=${POSTGRESQL_CONNECTOR_VERSION}
@@ -114,6 +114,10 @@ WORKDIR /oba/libs
 COPY --from=builder \
     --chown=oba_user:oba_group \
     /oba/libs/onebusaway-transit-data-federation-builder-withAllDependencies.jar .
+
+COPY --from=builder \
+    --chown=oba_user:oba_group \
+    /oba/libs/onebusaway-api-key-cli-withAllDependencies.jar .
 
 ##########
 # Copy over config files

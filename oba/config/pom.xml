@@ -41,6 +41,12 @@
             <type>jar</type>
         </dependency>
         <dependency>
+            <groupId>org.onebusaway</groupId>
+            <artifactId>onebusaway-api-key-cli</artifactId>
+            <version>${OBA_VERSION}</version>
+            <classifier>withAllDependencies</classifier>
+        </dependency>
+        <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
             <version>${MYSQL_CONNECTOR_VERSION}</version>
