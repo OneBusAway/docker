@@ -39,8 +39,7 @@ docker compose build oba_app
 To build a bundle, use the `oba_bundler` service:
 
 ```bash
-GTFS_URL=https://www.soundtransit.org/GTFS-rail/40_gtfs.zip \
-docker compose up oba_bundler
+GTFS_URL=https://www.soundtransit.org/GTFS-rail/40_gtfs.zip docker compose up oba_bundler
 ```
 
 This process will create all necessary bundle files and metadata, and all will be accessible in your local repo's `./bundle` directory.
