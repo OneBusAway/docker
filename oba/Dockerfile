@@ -200,7 +200,9 @@ COPY ./jmx_exporter_config.yml /app/jmx_exporter_config.yml
 
 # Set JVM options to include JMX exporter
 ENV JAVA_OPTS="-javaagent:/app/jmx_prometheus_javaagent.jar=1234:/app/jmx_exporter_config.yml"
-ENV CATALINA_OPTS="-Dport.shutdown=-1"
+# Disable the Tomcat shutdown port (8005) to prevent health check
+# requests from being logged as invalid shutdown commands.
+RUN sed -i 's/port="8005"/port="-1"/' $CATALINA_HOME/conf/server.xml
 
 ##########
 # Bootstrapper and Supervisor
