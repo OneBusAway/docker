@@ -200,6 +200,7 @@ COPY ./jmx_exporter_config.yml /app/jmx_exporter_config.yml
 
 # Set JVM options to include JMX exporter
 ENV JAVA_OPTS="-javaagent:/app/jmx_prometheus_javaagent.jar=1234:/app/jmx_exporter_config.yml"
+ENV CATALINA_OPTS="-Dport.shutdown=-1"
 
 ##########
 # Bootstrapper and Supervisor
