@@ -134,3 +134,86 @@ func TestRenderTemplateErrors(t *testing.T) {
 		t.Error("Expected an error with invalid JSON, but got none")
 	}
 }
+
+const federationTemplatePath = "../onebusaway-transit-data-federation-webapp-data-sources.xml.hbs"
+
+func TestFederationTemplateMultipleFeeds(t *testing.T) {
+	json := `{"FEEDS":[` +
+		`{"tripUpdatesUrl":"https://a/trips","agencyIds":["unitrans"],"feedApiKey":"x-key","feedApiValue":"secret"},` +
+		`{"vehiclePositionsUrl":"https://b/vehicles","agencyIds":["kcm"]}` +
+		`]}`
+
+	out, err := renderTemplate(federationTemplatePath, json)
+	if err != nil {
+		t.Fatalf("renderTemplate returned an error: %v", err)
+	}
+	if c := strings.Count(out, "GtfsRealtimeSource"); c != 2 {
+		t.Errorf("expected 2 GtfsRealtimeSource beans, got %d\n%s", c, out)
+	}
+	if !strings.Contains(out, `value="https://a/trips"`) {
+		t.Errorf("missing first feed tripUpdatesUrl:\n%s", out)
+	}
+	if !strings.Contains(out, `value="https://b/vehicles"`) {
+		t.Errorf("missing second feed vehiclePositionsUrl:\n%s", out)
+	}
+	if !strings.Contains(out, `<value>unitrans</value>`) {
+		t.Errorf("missing agencyId for first feed:\n%s", out)
+	}
+	if !strings.Contains(out, `<value>kcm</value>`) {
+		t.Errorf("missing agencyId for second feed:\n%s", out)
+	}
+	if !strings.Contains(out, `<entry key="x-key" value="secret"`) {
+		t.Errorf("missing first feed headersMap:\n%s", out)
+	}
+	if c := strings.Count(out, "headersMap"); c != 1 {
+		t.Errorf("expected headersMap exactly once, got %d:\n%s", c, out)
+	}
+}
+
+func TestFederationTemplateNoFeeds(t *testing.T) {
+	out, err := renderTemplate(federationTemplatePath, `{"FEEDS":[]}`)
+	if err != nil {
+		t.Fatalf("renderTemplate returned an error: %v", err)
+	}
+	if strings.Contains(out, "GtfsRealtimeSource") {
+		t.Errorf("expected 0 beans for empty FEEDS, got:\n%s", out)
+	}
+}
+
+func TestFederationTemplateLegacyNormalizedFeed(t *testing.T) {
+	// Exactly the one-element array bootstrap.sh builds from the legacy
+	// single-feed env vars. Blank feedApiKey must produce no headersMap.
+	json := `{"FEEDS":[{"tripUpdatesUrl":"https://a/trips","vehiclePositionsUrl":"https://a/veh",` +
+		`"alertsUrl":"https://a/alerts","refreshInterval":"30","agencyIds":["unitrans"],` +
+		`"feedApiKey":"","feedApiValue":""}]}`
+
+	out, err := renderTemplate(federationTemplatePath, json)
+	if err != nil {
+		t.Fatalf("renderTemplate returned an error: %v", err)
+	}
+	if c := strings.Count(out, "GtfsRealtimeSource"); c != 1 {
+		t.Errorf("expected 1 bean, got %d\n%s", c, out)
+	}
+	for _, want := range []string{`value="https://a/trips"`, `value="https://a/veh"`, `value="https://a/alerts"`, `value="30"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "headersMap") {
+		t.Errorf("blank feedApiKey should produce no headersMap:\n%s", out)
+	}
+}
+
+func TestFederationTemplateSingularAgencyId(t *testing.T) {
+	json := `{"FEEDS":[{"tripUpdatesUrl":"https://x/trips","agencyId":"unitrans"}]}`
+	out, err := renderTemplate(federationTemplatePath, json)
+	if err != nil {
+		t.Fatalf("renderTemplate returned an error: %v", err)
+	}
+	if !strings.Contains(out, `<property name="agencyId" value="unitrans"`) {
+		t.Errorf("missing singular agencyId property:\n%s", out)
+	}
+	if strings.Contains(out, `<property name="agencyIds"`) {
+		t.Errorf("did not expect plural agencyIds list:\n%s", out)
+	}
+}
