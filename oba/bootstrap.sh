@@ -36,9 +36,12 @@ FEDERATION_XML_DESTINATION="$CATALINA_HOME/webapps/onebusaway-transit-data-feder
 # single-feed vars so already-deployed Dockerfiles keep working.
 # Strip whitespace for the guard only, so a blank/whitespace GTFS_RT_FEEDS
 # falls through to the legacy/no-feeds path instead of producing invalid JSON.
+# Any explicit (non-whitespace) value — including "[]" — takes precedence over
+# the legacy vars, so operators can disable realtime feeds with GTFS_RT_FEEDS='[]'
+# even when the legacy single-feed vars are still set.
 GTFS_RT_FEEDS_TRIMMED="$(printf '%s' "$GTFS_RT_FEEDS" | tr -d '[:space:]')"
-if [ -n "$GTFS_RT_FEEDS_TRIMMED" ] && [ "$GTFS_RT_FEEDS_TRIMMED" != "[]" ]; then
-    echo "GTFS_RT_FEEDS is set. Rendering multiple GTFS-RT feeds."
+if [ -n "$GTFS_RT_FEEDS_TRIMMED" ]; then
+    echo "GTFS_RT_FEEDS is set; using it to configure GTFS-RT feeds."
     FEEDS_JSON="$GTFS_RT_FEEDS"
 elif [ -n "$TRIP_UPDATES_URL" ] || [ -n "$VEHICLE_POSITIONS_URL" ]; then
     echo "Legacy single-feed GTFS-RT env vars are set. Normalizing into one feed."
