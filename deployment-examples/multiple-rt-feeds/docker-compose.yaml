@@ -1,0 +1,67 @@
+# Multiple GTFS-RT feeds example: King County Metro + Pierce Transit.
+#
+# Demonstrates the GTFS_RT_FEEDS env var, which configures one OR many GTFS-RT
+# realtime feeds (one GtfsRealtimeSource bean per feed). Static data comes from
+# the consolidated Puget Sound GTFS feed, which already contains both agencies
+# (agency_id 1 = King County Metro, agency_id 3 = Pierce Transit), so the
+# single-feed bundle builder handles it as-is.
+#
+# NOTE: oba_app is built from this repo's ../../oba directory rather than the
+# published opentransitsoftwarefoundation/onebusaway-api-webapp:2.7.1-latest
+# image, because GTFS_RT_FEEDS support is not in a published release yet. Once a
+# 2.7.1 image that understands GTFS_RT_FEEDS is published, an immutable
+# deployment can instead bake these env vars into a Dockerfile FROM that image
+# (see ../immutable for that pattern).
+
+services:
+  # One-shot job: builds the consolidated bundle into the shared volume, then exits.
+  oba_bundler:
+    build:
+      context: ../../bundler
+    volumes:
+      - oba-bundle:/bundle
+    environment:
+      - GTFS_URL=https://gtfs.sound.obaweb.org/prod/gtfs_puget_sound_consolidated.zip
+
+  oba_database_pg:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: oba_user
+      POSTGRES_PASSWORD: oba_password
+      POSTGRES_DB: oba_database
+    # No host port mapping: oba_app reaches the database over the compose
+    # network, so there's no need to expose 5432 (and it avoids colliding with
+    # a Postgres already running on the host).
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    restart: always
+
+  oba_app:
+    depends_on:
+      oba_database_pg:
+        condition: service_started
+      # Wait for the bundle build to finish before starting the app.
+      oba_bundler:
+        condition: service_completed_successfully
+    build:
+      context: ../../oba
+    environment:
+      - JDBC_URL=jdbc:postgresql://oba_database_pg:5432/oba_database
+      - JDBC_DRIVER=org.postgresql.Driver
+      - JDBC_USER=oba_user
+      - JDBC_PASSWORD=oba_password
+      - TEST_API_KEY=test # For testing only; remove in production.
+      - TZ=America/Los_Angeles
+      # Two realtime feeds, one per agency. KCM publishes raw GTFS-RT protobufs;
+      # Pierce is relayed through the Puget Sound OneBusAway GTFS-RT endpoints.
+      # agencyIds maps each feed's entities onto the matching bundle agency.
+      - 'GTFS_RT_FEEDS=[{"tripUpdatesUrl":"https://s3.amazonaws.com/kcm-alerts-realtime-prod/tripupdates.pb","vehiclePositionsUrl":"https://s3.amazonaws.com/kcm-alerts-realtime-prod/vehiclepositions.pb","alertsUrl":"https://s3.amazonaws.com/kcm-alerts-realtime-prod/alerts.pb","refreshInterval":"30","agencyIds":["1"]},{"tripUpdatesUrl":"https://api.pugetsound.onebusaway.org/api/gtfs_realtime/trip-updates-for-agency/3.pb?key=org.onebusaway.iphone","vehiclePositionsUrl":"https://api.pugetsound.onebusaway.org/api/gtfs_realtime/vehicle-positions-for-agency/3.pb?key=org.onebusaway.iphone","alertsUrl":"https://api.pugetsound.onebusaway.org/api/gtfs_realtime/alerts-for-agency/3.pb?key=org.onebusaway.iphone","refreshInterval":"30","agencyIds":["3"]}]'
+    volumes:
+      - oba-bundle:/bundle
+    ports:
+      - "8080:8080"
+      - "1234:1234" # JMX exporter port
+
+volumes:
+  oba-bundle:
+  pg-data:
