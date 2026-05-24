@@ -31,45 +31,45 @@ hbs_renderer -input "$API_XML_SOURCE" \
 FEDERATION_XML_SOURCE="/oba/config/onebusaway-transit-data-federation-webapp-data-sources.xml.hbs"
 FEDERATION_XML_DESTINATION="$CATALINA_HOME/webapps/onebusaway-transit-data-federation-webapp/WEB-INF/classes/data-sources.xml"
 
-if [ -z "$TRIP_UPDATES_URL" ] && [ -z "$VEHICLE_POSITIONS_URL" ]; then
-    GTFS_RT_AVAILABLE=""
-    echo "No GTFS-RT related environment variables are set. Removing element from data-sources.xml"
-else
-    GTFS_RT_AVAILABLE="1"
-    echo "GTFS-RT related environment variables are set. Setting them in data-sources.xml"
-fi
-
-# Check if the GTFS_RT authentication header is set
-if [ -n "$FEED_API_KEY" ] && [ -n "$FEED_API_VALUE" ]; then
-    HAS_API_KEY="1"
-else
-    HAS_API_KEY=""
-fi
-
-# Handle AGENCY_ID_LIST properly - if it's a JSON array, use it directly, otherwise treat as empty
-if [ -n "$AGENCY_ID_LIST" ]; then
-    # Remove the outer quotes if they exist and use the array directly
-    AGENCY_ID_LIST_JSON="$AGENCY_ID_LIST"
-else
-    AGENCY_ID_LIST_JSON="[]"
-fi
-
-# Build the JSON string with proper handling of AGENCY_ID_LIST
-JSON_CONFIG=$(cat <<EOF
-{
-    "GTFS_RT_AVAILABLE": "$GTFS_RT_AVAILABLE",
-    "TRIP_UPDATES_URL": "$TRIP_UPDATES_URL",
-    "VEHICLE_POSITIONS_URL": "$VEHICLE_POSITIONS_URL",
-    "ALERTS_URL": "$ALERTS_URL",
-    "REFRESH_INTERVAL": "$REFRESH_INTERVAL",
-    "AGENCY_ID": "$AGENCY_ID",
-    "AGENCY_ID_LIST": $AGENCY_ID_LIST_JSON,
-    "HAS_API_KEY": "$HAS_API_KEY",
-    "FEED_API_KEY": "$FEED_API_KEY",
-    "FEED_API_VALUE": "$FEED_API_VALUE"
-}
+# Build the FEEDS array for the transit-data-federation data-sources.xml.
+# Prefer the multi-feed GTFS_RT_FEEDS env var; fall back to the legacy
+# single-feed vars so already-deployed Dockerfiles keep working.
+# Strip whitespace for the guard only, so a blank/whitespace GTFS_RT_FEEDS
+# falls through to the legacy/no-feeds path instead of producing invalid JSON.
+# Any explicit (non-whitespace) value — including "[]" — takes precedence over
+# the legacy vars, so operators can disable realtime feeds with GTFS_RT_FEEDS='[]'
+# even when the legacy single-feed vars are still set.
+GTFS_RT_FEEDS_TRIMMED="$(printf '%s' "$GTFS_RT_FEEDS" | tr -d '[:space:]')"
+if [ -n "$GTFS_RT_FEEDS_TRIMMED" ]; then
+    echo "GTFS_RT_FEEDS is set; using it to configure GTFS-RT feeds."
+    FEEDS_JSON="$GTFS_RT_FEEDS"
+elif [ -n "$TRIP_UPDATES_URL" ] || [ -n "$VEHICLE_POSITIONS_URL" ]; then
+    echo "Legacy single-feed GTFS-RT env vars are set. Normalizing into one feed."
+    if [ -n "$AGENCY_ID_LIST" ]; then
+        AGENCY_IDS_JSON="$AGENCY_ID_LIST"
+    elif [ -n "$AGENCY_ID" ]; then
+        AGENCY_IDS_JSON="[\"$AGENCY_ID\"]"
+    else
+        AGENCY_IDS_JSON="[]"
+    fi
+    FEEDS_JSON=$(cat <<EOF
+[{
+  "tripUpdatesUrl": "$TRIP_UPDATES_URL",
+  "vehiclePositionsUrl": "$VEHICLE_POSITIONS_URL",
+  "alertsUrl": "$ALERTS_URL",
+  "refreshInterval": "$REFRESH_INTERVAL",
+  "agencyIds": $AGENCY_IDS_JSON,
+  "feedApiKey": "$FEED_API_KEY",
+  "feedApiValue": "$FEED_API_VALUE"
+}]
 EOF
 )
+else
+    FEEDS_JSON="[]"
+    echo "No GTFS-RT environment variables are set. No realtime feeds will be configured."
+fi
+
+JSON_CONFIG="{ \"FEEDS\": $FEEDS_JSON }"
 
 hbs_renderer -input "$FEDERATION_XML_SOURCE" \
              -json "$JSON_CONFIG" \

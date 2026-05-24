@@ -100,6 +100,7 @@ You can find the latest published Docker images on Docker Hub:
   * `GTFS_URL` - The URL to the GTFS feed you want to use.
 * GTFS-RT Support (Optional)
   * `TZ` - The timezone for the server. Ensure that the server's timezone matches the timezone specified in your static GTFS `agency.txt` file. The timezone format is the IANA standard, and [a full list of timezones can be found on Wikipedia](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List).
+  * `GTFS_RT_FEEDS` - Preferred for configuring one OR many GTFS-RT feeds. A JSON array of feed objects; each object may contain `tripUpdatesUrl`, `vehiclePositionsUrl`, `alertsUrl`, `refreshInterval`, `agencyIds` (array), `feedApiKey`, and `feedApiValue`. Example: `[{"tripUpdatesUrl":"https://a/trips","agencyIds":["unitrans"]},{"vehiclePositionsUrl":"https://b/veh","agencyIds":["kcm"]}]`. When set, it takes precedence over the single-feed variables below.
   * `ALERTS_URL` - Service Alerts URL for GTFS-RT.
   * `TRIP_UPDATES_URL` - Trip Updates URL for GTFS-RT.
   * `VEHICLE_POSITIONS_URL` - Vehicle Positions URL for GTFS-RT.
