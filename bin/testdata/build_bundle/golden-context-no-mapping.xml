@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd">
+
+    <bean id="gtfs-bundles" class="org.onebusaway.transit_data_federation.bundle.model.GtfsBundles">
+        <property name="bundles">
+            <list>
+                <bean class="org.onebusaway.transit_data_federation.bundle.model.GtfsBundle">
+                    <property name="path" value="@INPUTS@/metro.zip" />
+                    <property name="defaultAgencyId" value="1" />
+                </bean>
+                <bean class="org.onebusaway.transit_data_federation.bundle.model.GtfsBundle">
+                    <property name="path" value="@INPUTS@/pierce.zip" />
+                    <property name="defaultAgencyId" value="3" />
+                </bean>
+            </list>
+        </property>
+    </bean>
+
+</beans>

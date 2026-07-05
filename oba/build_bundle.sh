@@ -144,6 +144,65 @@ download_bundle_inputs() {
     fi
 }
 
+# generate_bundle_context_xml MANIFEST_JSON INPUTS_DIR MAPPING_PATH OUT_XML
+# Bean id "gtfs-bundles" and bean name "entityReplacementStrategy" are looked up
+# by those exact names inside the federation builder — do not rename.
+generate_bundle_context_xml() {
+    local manifest="$1" inputs_dir="$2" mapping_path="$3" out_xml="$4"
+
+    {
+        cat <<'XMLHEAD'
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd">
+
+    <bean id="gtfs-bundles" class="org.onebusaway.transit_data_federation.bundle.model.GtfsBundles">
+        <property name="bundles">
+            <list>
+XMLHEAD
+
+        local feed_count i id agency
+        feed_count="$(jq -r '.feeds | length' "$manifest")"
+        i=0
+        while [ "$i" -lt "$feed_count" ]; do
+            id="$(jq -r ".feeds[$i].id" "$manifest")"
+            agency="$(jq -r ".feeds[$i].defaultAgencyId" "$manifest")"
+            cat <<XMLFEED
+                <bean class="org.onebusaway.transit_data_federation.bundle.model.GtfsBundle">
+                    <property name="path" value="${inputs_dir}/${id}.zip" />
+                    <property name="defaultAgencyId" value="${agency}" />
+                </bean>
+XMLFEED
+            i=$((i + 1))
+        done
+
+        cat <<'XMLMID'
+            </list>
+        </property>
+    </bean>
+XMLMID
+
+        if [ -n "$mapping_path" ]; then
+            cat <<XMLMAP
+
+    <bean id="entityReplacementStrategyFactory" class="org.onebusaway.transit_data_federation.bundle.tasks.EntityReplacementStrategyFactory">
+        <property name="entityMappings">
+            <map>
+                <entry key="org.onebusaway.gtfs.model.Stop" value="${mapping_path}" />
+            </map>
+        </property>
+    </bean>
+    <bean id="entityReplacementStrategy" factory-bean="entityReplacementStrategyFactory" factory-method="create" />
+XMLMAP
+        fi
+
+        cat <<'XMLTAIL'
+
+</beans>
+XMLTAIL
+    } > "$out_xml"
+}
+
 run_single_mode() {
     # Set default filename if using GTFS_URL
     if [ -n "$GTFS_URL" ]; then

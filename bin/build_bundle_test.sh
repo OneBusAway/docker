@@ -230,6 +230,35 @@ rm -rf "$WORK2"
 # reuse run_sourced (which references $STUBS2 in PATH). Cleanup happens at the
 # end of the file once all sourced-function tests are done.
 
+# --- generate_bundle_context_xml ----------------------------------------------
+
+WORK3="$(mktemp -d)"
+mkdir -p "$WORK3/inputs"
+cp "$TESTDATA/bundle-inputs.json" "$WORK3/inputs/bundle-inputs.json"
+
+run_sourced "generate_bundle_context_xml '$WORK3/inputs/bundle-inputs.json' '$WORK3/inputs' '$WORK3/StopConsolidation.txt' '$WORK3/bundle-context.xml'" \
+    BUNDLE_DIR="$WORK3"
+[ "$RUN_STATUS" -eq 0 ] && pass "xml generation (with mapping) succeeds" || fail "xml generation (with mapping) succeeds: $RUN_OUTPUT"
+
+sed -e "s|@INPUTS@|$WORK3/inputs|g" -e "s|@MAPPING@|$WORK3/StopConsolidation.txt|g" \
+    "$TESTDATA/golden-context-with-mapping.xml" > "$WORK3/expected.xml"
+if diff -u "$WORK3/expected.xml" "$WORK3/bundle-context.xml"; then
+    pass "context XML matches golden (with mapping)"
+else
+    fail "context XML matches golden (with mapping)"
+fi
+
+run_sourced "generate_bundle_context_xml '$WORK3/inputs/bundle-inputs.json' '$WORK3/inputs' '' '$WORK3/bundle-context-nm.xml'" \
+    BUNDLE_DIR="$WORK3"
+sed -e "s|@INPUTS@|$WORK3/inputs|g" "$TESTDATA/golden-context-no-mapping.xml" > "$WORK3/expected-nm.xml"
+if diff -u "$WORK3/expected-nm.xml" "$WORK3/bundle-context-nm.xml"; then
+    pass "context XML matches golden (no mapping)"
+else
+    fail "context XML matches golden (no mapping)"
+fi
+
+rm -rf "$WORK3"
+
 echo ""
 echo "=============================="
 echo "Results: $passed passed, $failed failed"
