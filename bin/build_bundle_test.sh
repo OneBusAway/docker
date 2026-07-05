@@ -315,6 +315,55 @@ assert_contains "$MULTI_OUTPUT" "Multi-input mode" "multi mode banner printed"
 
 rm -rf "$STUBS3" "$WORK4" "$SERVE2"
 
+# --- single mode + STOP_CONSOLIDATION_URL --------------------------------------
+
+STUBS4="$(mktemp -d)"
+WORK5="$(mktemp -d)"
+SERVE3="$(mktemp -d)"
+
+cat > "$STUBS4/wget" <<'EOF'
+#!/bin/bash
+out="" url=""
+while [ $# -gt 0 ]; do
+    if [ "$1" = "-O" ]; then out="$2"; shift 2; else url="$1"; shift; fi
+done
+src="$SERVE/$(basename "$url")"
+if [ -f "$src" ]; then cp "$src" "$out"; else exit 8; fi
+EOF
+cat > "$STUBS4/gtfstidy" <<'EOF'
+#!/bin/bash
+exit 0
+EOF
+cat > "$STUBS4/java" <<'EOF'
+#!/bin/bash
+echo "java $*" >> "$STUB_LOG"
+EOF
+chmod +x "$STUBS4/wget" "$STUBS4/gtfstidy" "$STUBS4/java"
+
+echo "fake-gtfs"  > "$SERVE3/gtfs.zip"
+echo "1_M1 3_P1"  > "$SERVE3/StopConsolidation.txt"
+STUB_LOG="$WORK5/stub.log"; : > "$STUB_LOG"
+
+env -i PATH="$STUBS4:/usr/bin:/bin" HOME="$HOME" SERVE="$SERVE3" STUB_LOG="$STUB_LOG" \
+    BUNDLE_DIR="$WORK5" GTFS_URL=http://fixtures.test/gtfs.zip \
+    STOP_CONSOLIDATION_URL=http://fixtures.test/StopConsolidation.txt \
+    TDF_BUILDER_JAR=/fake/builder.jar \
+    bash "$SUT" > "$WORK5/run.out" 2>&1
+SC_STATUS=$?
+
+[ "$SC_STATUS" -eq 0 ] && pass "single mode + consolidation exits 0" || fail "single mode + consolidation exits 0: $(cat "$WORK5/run.out")"
+[ -f "$WORK5/StopConsolidation.txt" ] && pass "single mode downloads mapping" || fail "single mode downloads mapping"
+[ -f "$WORK5/consolidation-context.xml" ] && pass "single mode writes consolidation-context.xml" || fail "single mode writes consolidation-context.xml"
+assert_contains "$(cat "$STUB_LOG")" "java -Xss4m -Xmx3g -jar /fake/builder.jar ./gtfs_pristine.zip consolidation-context.xml ." "single mode consolidation builder argv"
+if grep -q "entityReplacementStrategy" "$WORK5/consolidation-context.xml" && ! grep -q "gtfs-bundles" "$WORK5/consolidation-context.xml"; then
+    pass "consolidation-context.xml has replacement beans only"
+else
+    fail "consolidation-context.xml has replacement beans only"
+fi
+
+rm -rf "$STUBS4" "$WORK5" "$SERVE3"
+rm -rf "$STUBS2" "$SERVE"   # deferred cleanup from the Task 3/4 sourced-function tests
+
 echo ""
 echo "=============================="
 echo "Results: $passed passed, $failed failed"

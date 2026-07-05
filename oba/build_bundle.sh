@@ -203,6 +203,27 @@ XMLTAIL
     } > "$out_xml"
 }
 
+# generate_single_mode_context_xml MAPPING_PATH OUT_XML — replacement beans only.
+generate_single_mode_context_xml() {
+    local mapping_path="$1" out_xml="$2"
+    cat > "$out_xml" <<XMLSC
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd">
+
+    <bean id="entityReplacementStrategyFactory" class="org.onebusaway.transit_data_federation.bundle.tasks.EntityReplacementStrategyFactory">
+        <property name="entityMappings">
+            <map>
+                <entry key="org.onebusaway.gtfs.model.Stop" value="${mapping_path}" />
+            </map>
+        </property>
+    </bean>
+    <bean id="entityReplacementStrategy" factory-bean="entityReplacementStrategyFactory" factory-method="create" />
+
+</beans>
+XMLSC
+}
+
 run_single_mode() {
     # Set default filename if using GTFS_URL
     if [ -n "$GTFS_URL" ]; then
@@ -241,9 +262,16 @@ run_single_mode() {
         GTFS_ZIP_FILENAME="gtfs_tidied.zip"
     fi
 
+    local context_args=()
+    if [ -n "$STOP_CONSOLIDATION_URL" ]; then
+        fetch_url "$STOP_CONSOLIDATION_URL" "$BUNDLE_DIR/StopConsolidation.txt" "stop consolidation mapping"
+        generate_single_mode_context_xml "$BUNDLE_DIR/StopConsolidation.txt" "$BUNDLE_DIR/consolidation-context.xml"
+        context_args=(consolidation-context.xml)
+    fi
+
     # The JAR must be executed from within the same directory
     # as the bundle, or else some necessary files are not generated.
-    java -Xss4m -Xmx3g -jar "$TDF_BUILDER_JAR" ./"${GTFS_ZIP_FILENAME}" .
+    java -Xss4m -Xmx3g -jar "$TDF_BUILDER_JAR" ./"${GTFS_ZIP_FILENAME}" ${context_args[@]+"${context_args[@]}"} .
 }
 
 run_multi_mode() {
