@@ -40,6 +40,26 @@ jobs:
       - name: Run script tests
         run: bash bin/build_bundle_test.sh
 
+  bundle_inputs_integration:
+    name: Bundle inputs integration (real builder)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build oba image
+        run: |
+          docker buildx build \
+            --load \
+            -t oba-image:latest \
+            ./oba
+
+      - name: Run integration test
+        timeout-minutes: 20
+        run: |
+          chmod +x bin/bundle_inputs_integration_test.sh bin/testdata/build_bundle/make_fixtures.sh
+          bash bin/bundle_inputs_integration_test.sh
+
   image:
     name: Build Docker Image
     runs-on: ubuntu-latest
