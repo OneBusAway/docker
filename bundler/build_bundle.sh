@@ -47,6 +47,11 @@ validate_mode_env() {
         exit 1
     fi
 
+    if [ -n "$BUNDLE_INPUTS_URL" ] && [ -n "$STOP_CONSOLIDATION_URL" ]; then
+        echo "Error: STOP_CONSOLIDATION_URL cannot be set in multi-input mode; the mapping comes from the manifest's stopConsolidationUrl."
+        exit 1
+    fi
+
     if [ -n "$BUNDLE_INPUTS_URL" ]; then
         return 0
     fi
@@ -123,9 +128,20 @@ run_single_mode() {
     java -Xss4m -Xmx3g -jar "$TDF_BUILDER_JAR" ./"${GTFS_ZIP_FILENAME}" .
 }
 
+run_multi_mode() {
+    echo "OBA Bundle Builder Starting"
+    echo "Multi-input mode: BUNDLE_INPUTS_URL: $BUNDLE_INPUTS_URL"
+    echo "ERROR: multi-input mode not yet implemented" >&2
+    exit 1
+}
+
 main() {
     validate_mode_env
-    run_single_mode
+    if [ "$(bundle_mode)" = "multi" ]; then
+        run_multi_mode
+    else
+        run_single_mode
+    fi
 }
 
 # Main guard: allow tests to `source` this file without executing.

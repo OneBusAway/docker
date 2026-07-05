@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Unit tests for oba/build_bundle.sh. Sources the script (main guard prevents
-# execution) and exercises functions with stub binaries on PATH.
+# Unit tests for oba/build_bundle.sh. Runs the script as a subprocess
+# (run_script; main DOES execute) and exercises functions with stub binaries
+# on PATH.
 # Style follows bin/e2e_api_key_test.sh (pass/fail counters).
 
 set -u
@@ -110,6 +111,22 @@ run_script "$STUBS" STUB_LOG="$STUB_LOG" BUNDLE_DIR="$WORK" GTFS_URL=http://exam
 assert_contains "$RUN_OUTPUT" "ERROR:" "failed download prints an ERROR: line"
 
 rm -rf "$STUBS" "$WORK"
+
+# --- Multi-input mode selection ----------------------------------------------
+
+run_script "" BUNDLE_INPUTS_URL=http://x/bundle-inputs.json GTFS_URL=http://x/gtfs.zip
+[ "$RUN_STATUS" -ne 0 ] && pass "BUNDLE_INPUTS_URL + GTFS_URL exits nonzero" || fail "BUNDLE_INPUTS_URL + GTFS_URL exits nonzero"
+assert_contains "$RUN_OUTPUT" "BUNDLE_INPUTS_URL cannot be combined" "combined-mode error message"
+
+run_script "" BUNDLE_INPUTS_URL=http://x/bundle-inputs.json GTFS_ZIP_FILENAME=local.zip
+[ "$RUN_STATUS" -ne 0 ] && pass "BUNDLE_INPUTS_URL + GTFS_ZIP_FILENAME exits nonzero" || fail "BUNDLE_INPUTS_URL + GTFS_ZIP_FILENAME exits nonzero"
+
+run_script "" BUNDLE_INPUTS_URL=http://x/bundle-inputs.json STOP_CONSOLIDATION_URL=http://x/map.txt
+[ "$RUN_STATUS" -ne 0 ] && pass "BUNDLE_INPUTS_URL + STOP_CONSOLIDATION_URL exits nonzero" || fail "BUNDLE_INPUTS_URL + STOP_CONSOLIDATION_URL exits nonzero"
+assert_contains "$RUN_OUTPUT" "comes from the manifest" "consolidation-env-in-multi-mode error message"
+
+run_script "" BUNDLE_INPUTS_URL=http://x/bundle-inputs.json
+assert_contains "$RUN_OUTPUT" "Multi-input mode" "BUNDLE_INPUTS_URL alone selects multi mode"
 
 echo ""
 echo "=============================="
