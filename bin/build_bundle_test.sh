@@ -152,7 +152,7 @@ chmod +x "$STUBS2/wget"
 run_sourced() {
     local snippet="$1"; shift
     local tmp_out; tmp_out="$(mktemp)"
-    env -i PATH="$STUBS2:/usr/bin:/bin" HOME="$HOME" SERVE="$SERVE" "$@" \
+    env -i PATH="$STUBS2:/usr/bin:/bin:/usr/sbin:/sbin" HOME="$HOME" SERVE="$SERVE" "$@" \
         bash -c "source '$SUT'; $snippet" >"$tmp_out" 2>&1
     RUN_STATUS=$?
     RUN_OUTPUT="$(cat "$tmp_out")"
