@@ -25,6 +25,21 @@ jobs:
         working-directory: oba/config/template_renderer
         run: go test ./...
 
+  bundle_script:
+    name: build_bundle.sh unit tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Guard - oba and bundler scripts identical
+        run: diff oba/build_bundle.sh bundler/build_bundle.sh
+
+      - name: Run script tests
+        run: bash bin/build_bundle_test.sh
+
   image:
     name: Build Docker Image
     runs-on: ubuntu-latest

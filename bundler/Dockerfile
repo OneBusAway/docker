@@ -42,7 +42,7 @@ FROM tomcat:8.5.100-jdk11-temurin
 ARG OBA_VERSION
 ENV OBA_VERSION=${OBA_VERSION}
 
-RUN apt-get update && apt-get install -y unzip zip
+RUN apt-get update && apt-get install -y jq unzip zip
 
 # Start configuring OBA
 WORKDIR /oba
