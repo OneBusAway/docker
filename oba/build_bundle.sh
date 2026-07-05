@@ -249,8 +249,34 @@ run_single_mode() {
 run_multi_mode() {
     echo "OBA Bundle Builder Starting"
     echo "Multi-input mode: BUNDLE_INPUTS_URL: $BUNDLE_INPUTS_URL"
-    echo "ERROR: multi-input mode not yet implemented" >&2
-    exit 1
+    echo "OBA Version: $OBA_VERSION"
+    echo "TDF_BUILDER_JAR: $TDF_BUILDER_JAR"
+    echo "gtfstidy: skipped in multi-input mode (parity with the legacy multi-feed build)"
+
+    mkdir -p "$BUNDLE_DIR"
+    cd "$BUNDLE_DIR"
+
+    download_bundle_inputs
+
+    generate_bundle_context_xml \
+        "$BUNDLE_DIR/inputs/bundle-inputs.json" \
+        "$BUNDLE_DIR/inputs" \
+        "$MAPPING_PATH" \
+        "$BUNDLE_DIR/bundle-context.xml"
+
+    # Any non-.zip, non-directory arg before the last is treated as a Spring
+    # context path by FederatedTransitDataBundleCreatorMain; "." is the output dir.
+    # The JAR must be executed from within the same directory as the bundle,
+    # or else some necessary files are not generated.
+    java -Xss4m -Xmx3g -jar "$TDF_BUILDER_JAR" bundle-context.xml .
+
+    # MAPPING_PATH already lives at $BUNDLE_DIR/StopConsolidation.txt — the
+    # hardcoded name ConsolidatedStopsServiceImpl reads at runtime. Assert it
+    # survived the build rather than trusting the download.
+    if [ -n "$MAPPING_PATH" ] && [ ! -f "$MAPPING_PATH" ]; then
+        echo "ERROR: stop consolidation mapping missing from bundle output dir after build" >&2
+        exit 1
+    fi
 }
 
 main() {

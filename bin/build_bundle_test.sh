@@ -259,6 +259,62 @@ fi
 
 rm -rf "$WORK3"
 
+# --- run_multi_mode end-to-end (stubbed java) ---------------------------------
+
+STUBS3="$(mktemp -d)"
+WORK4="$(mktemp -d)"
+SERVE2="$(mktemp -d)"
+
+# The wget stub is re-declared locally (same behavior as Task 3's) because this
+# block runs the full script as a subprocess with its own SERVE dir.
+cat > "$STUBS3/wget" <<'EOF'
+#!/bin/bash
+out="" url=""
+while [ $# -gt 0 ]; do
+    if [ "$1" = "-O" ]; then out="$2"; shift 2; else url="$1"; shift; fi
+done
+src="$SERVE/$(basename "$url")"
+if [ -f "$src" ]; then cp "$src" "$out"; else exit 8; fi
+EOF
+cat > "$STUBS3/java" <<'EOF'
+#!/bin/bash
+echo "java $*" >> "$STUB_LOG"
+echo "cwd $PWD" >> "$STUB_LOG"
+EOF
+cat > "$STUBS3/gtfstidy" <<'EOF'
+#!/bin/bash
+echo "gtfstidy WAS CALLED" >> "$STUB_LOG"
+EOF
+chmod +x "$STUBS3/wget" "$STUBS3/java" "$STUBS3/gtfstidy"
+
+cp "$TESTDATA/bundle-inputs.json" "$SERVE2/bundle-inputs.json"
+echo "zipbytes-metro"  > "$SERVE2/metro.zip"
+echo "zipbytes-pierce" > "$SERVE2/pierce.zip"
+echo "1_M1 3_P1"       > "$SERVE2/StopConsolidation.txt"
+
+STUB_LOG="$WORK4/stub.log"; : > "$STUB_LOG"
+
+env -i PATH="$STUBS3:/usr/bin:/bin" HOME="$HOME" SERVE="$SERVE2" STUB_LOG="$STUB_LOG" \
+    BUNDLE_DIR="$WORK4" BUNDLE_INPUTS_URL=http://fixtures.test/bundle-inputs.json \
+    TDF_BUILDER_JAR=/fake/builder.jar \
+    bash "$SUT" > "$WORK4/run.out" 2>&1
+MULTI_STATUS=$?
+MULTI_OUTPUT="$(cat "$WORK4/run.out")"
+
+[ "$MULTI_STATUS" -eq 0 ] && pass "multi mode (stubbed) exits 0" || fail "multi mode (stubbed) exits 0: $MULTI_OUTPUT"
+assert_contains "$(cat "$STUB_LOG")" "java -Xss4m -Xmx3g -jar /fake/builder.jar bundle-context.xml ." "multi mode builder argv"
+assert_contains "$(cat "$STUB_LOG")" "cwd $WORK4" "multi mode builder cwd is bundle dir"
+if grep -q "gtfstidy WAS CALLED" "$STUB_LOG"; then
+    fail "multi mode must not run gtfstidy"
+else
+    pass "multi mode must not run gtfstidy"
+fi
+[ -f "$WORK4/bundle-context.xml" ] && pass "bundle-context.xml written to bundle dir" || fail "bundle-context.xml written to bundle dir"
+[ -f "$WORK4/StopConsolidation.txt" ] && pass "StopConsolidation.txt present in bundle output dir" || fail "StopConsolidation.txt present in bundle output dir"
+assert_contains "$MULTI_OUTPUT" "Multi-input mode" "multi mode banner printed"
+
+rm -rf "$STUBS3" "$WORK4" "$SERVE2"
+
 echo ""
 echo "=============================="
 echo "Results: $passed passed, $failed failed"
