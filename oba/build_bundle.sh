@@ -85,6 +85,65 @@ fetch_url() {
     fi
 }
 
+# Downloads manifest, feed zips, and optional mapping. Requires jq.
+# Sets MAPPING_PATH to the downloaded mapping file path, or "" when absent.
+MAPPING_PATH=""
+
+download_bundle_inputs() {
+    local inputs_dir="$BUNDLE_DIR/inputs"
+    local manifest="$inputs_dir/bundle-inputs.json"
+    mkdir -p "$inputs_dir"
+
+    fetch_url "$BUNDLE_INPUTS_URL" "$manifest" "bundle-inputs manifest"
+
+    local version
+    version="$(jq -r '.version' "$manifest")"
+    if [ "$version" != "1" ]; then
+        echo "ERROR: unsupported bundle-inputs version: ${version}" >&2
+        exit 1
+    fi
+
+    local feed_count
+    feed_count="$(jq -r '.feeds | length' "$manifest")"
+    if [ "$feed_count" -eq 0 ]; then
+        echo "ERROR: bundle-inputs manifest lists no feeds" >&2
+        exit 1
+    fi
+
+    local i id url sha dest
+    i=0
+    while [ "$i" -lt "$feed_count" ]; do
+        id="$(jq -r ".feeds[$i].id" "$manifest")"
+        url="$(jq -r ".feeds[$i].url" "$manifest")"
+        sha="$(jq -r ".feeds[$i].sha256 // empty" "$manifest")"
+        dest="$inputs_dir/${id}.zip"
+
+        if ! wget -O "$dest" "$url"; then
+            echo "ERROR: failed to download feed '${id}' from ${url}" >&2
+            exit 1
+        fi
+
+        if [ -n "$sha" ]; then
+            if ! echo "${sha}  ${dest}" | sha256sum -c - > /dev/null 2>&1; then
+                echo "ERROR: sha256 mismatch for feed '${id}' (${dest})" >&2
+                exit 1
+            fi
+        fi
+        i=$((i + 1))
+    done
+
+    local mapping_url
+    mapping_url="$(jq -r '.stopConsolidationUrl // empty' "$manifest")"
+    if [ -n "$mapping_url" ]; then
+        # StopConsolidation.txt is the hardcoded filename ConsolidatedStopsServiceImpl
+        # reads from the bundle directory at runtime.
+        MAPPING_PATH="$BUNDLE_DIR/StopConsolidation.txt"
+        fetch_url "$mapping_url" "$MAPPING_PATH" "stop consolidation mapping"
+    else
+        MAPPING_PATH=""
+    fi
+}
+
 run_single_mode() {
     # Set default filename if using GTFS_URL
     if [ -n "$GTFS_URL" ]; then

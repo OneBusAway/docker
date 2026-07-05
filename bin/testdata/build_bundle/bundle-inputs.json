@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "feeds": [
+    {"id": "metro", "name": "King County Metro", "defaultAgencyId": "1", "url": "http://fixtures.test/metro.zip"},
+    {"id": "pierce", "name": "Pierce Transit", "defaultAgencyId": "3", "url": "http://fixtures.test/pierce.zip"}
+  ],
+  "stopConsolidationUrl": "http://fixtures.test/StopConsolidation.txt"
+}

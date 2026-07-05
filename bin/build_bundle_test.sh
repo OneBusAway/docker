@@ -128,6 +128,108 @@ assert_contains "$RUN_OUTPUT" "comes from the manifest" "consolidation-env-in-mu
 run_script "" BUNDLE_INPUTS_URL=http://x/bundle-inputs.json
 assert_contains "$RUN_OUTPUT" "Multi-input mode" "BUNDLE_INPUTS_URL alone selects multi mode"
 
+# --- download_bundle_inputs ---------------------------------------------------
+
+TESTDATA="$REPO_ROOT/bin/testdata/build_bundle"
+STUBS2="$(mktemp -d)"
+WORK2="$(mktemp -d)"
+SERVE="$(mktemp -d)"
+
+cat > "$STUBS2/wget" <<'EOF'
+#!/bin/bash
+# stub wget: serves $SERVE/<basename of URL>; 404s (exit 8) when absent
+out="" url=""
+while [ $# -gt 0 ]; do
+    if [ "$1" = "-O" ]; then out="$2"; shift 2; else url="$1"; shift; fi
+done
+src="$SERVE/$(basename "$url")"
+if [ -f "$src" ]; then cp "$src" "$out"; else exit 8; fi
+EOF
+chmod +x "$STUBS2/wget"
+
+# helper: run a snippet in a subshell that sources the SUT with a controlled env
+# usage: run_sourced <snippet> [VAR=value ...]
+run_sourced() {
+    local snippet="$1"; shift
+    local tmp_out; tmp_out="$(mktemp)"
+    env -i PATH="$STUBS2:/usr/bin:/bin" HOME="$HOME" SERVE="$SERVE" "$@" \
+        bash -c "source '$SUT'; $snippet" >"$tmp_out" 2>&1
+    RUN_STATUS=$?
+    RUN_OUTPUT="$(cat "$tmp_out")"
+    rm -f "$tmp_out"
+}
+
+cp "$TESTDATA/bundle-inputs.json" "$SERVE/bundle-inputs.json"
+echo "zipbytes-metro"  > "$SERVE/metro.zip"
+echo "zipbytes-pierce" > "$SERVE/pierce.zip"
+echo "1_M1 3_P1"       > "$SERVE/StopConsolidation.txt"
+
+run_sourced "download_bundle_inputs && echo MAPPING=\$MAPPING_PATH" \
+    BUNDLE_DIR="$WORK2" BUNDLE_INPUTS_URL=http://fixtures.test/bundle-inputs.json
+[ "$RUN_STATUS" -eq 0 ] && pass "download_bundle_inputs succeeds" || fail "download_bundle_inputs succeeds: $RUN_OUTPUT"
+[ -f "$WORK2/inputs/metro.zip" ]  && pass "metro.zip downloaded"  || fail "metro.zip downloaded"
+[ -f "$WORK2/inputs/pierce.zip" ] && pass "pierce.zip downloaded" || fail "pierce.zip downloaded"
+[ -f "$WORK2/StopConsolidation.txt" ] && pass "mapping downloaded to StopConsolidation.txt" || fail "mapping downloaded to StopConsolidation.txt"
+assert_contains "$RUN_OUTPUT" "MAPPING=$WORK2/StopConsolidation.txt" "MAPPING_PATH set"
+
+# no-mapping manifest → MAPPING_PATH empty
+rm -rf "$WORK2"; WORK2="$(mktemp -d)"
+cp "$TESTDATA/bundle-inputs-no-mapping.json" "$SERVE/bundle-inputs.json"
+run_sourced "download_bundle_inputs && echo MAPPING=[\$MAPPING_PATH]" \
+    BUNDLE_DIR="$WORK2" BUNDLE_INPUTS_URL=http://fixtures.test/bundle-inputs.json
+assert_contains "$RUN_OUTPUT" "MAPPING=[]" "no stopConsolidationUrl -> empty MAPPING_PATH"
+[ ! -e "$WORK2/StopConsolidation.txt" ] && pass "no mapping file created" || fail "no mapping file created"
+
+# unsupported version
+rm -rf "$WORK2"; WORK2="$(mktemp -d)"
+echo '{"version": 2, "feeds": []}' > "$SERVE/bundle-inputs.json"
+run_sourced "download_bundle_inputs" BUNDLE_DIR="$WORK2" BUNDLE_INPUTS_URL=http://fixtures.test/bundle-inputs.json
+[ "$RUN_STATUS" -ne 0 ] && pass "unsupported manifest version fails" || fail "unsupported manifest version fails"
+assert_contains "$RUN_OUTPUT" "ERROR: unsupported bundle-inputs version" "version error message"
+
+# empty feeds
+echo '{"version": 1, "feeds": []}' > "$SERVE/bundle-inputs.json"
+run_sourced "download_bundle_inputs" BUNDLE_DIR="$WORK2" BUNDLE_INPUTS_URL=http://fixtures.test/bundle-inputs.json
+[ "$RUN_STATUS" -ne 0 ] && pass "empty feeds fails" || fail "empty feeds fails"
+assert_contains "$RUN_OUTPUT" "ERROR: bundle-inputs manifest lists no feeds" "empty-feeds error message"
+
+# missing feed zip → ERROR naming the feed
+cp "$TESTDATA/bundle-inputs.json" "$SERVE/bundle-inputs.json"
+rm -f "$SERVE/pierce.zip"
+run_sourced "download_bundle_inputs" BUNDLE_DIR="$WORK2" BUNDLE_INPUTS_URL=http://fixtures.test/bundle-inputs.json
+[ "$RUN_STATUS" -ne 0 ] && pass "missing feed download fails" || fail "missing feed download fails"
+assert_contains "$RUN_OUTPUT" "ERROR: failed to download feed 'pierce'" "feed download error names the feed"
+echo "zipbytes-pierce" > "$SERVE/pierce.zip"
+
+# sha256 mismatch → ERROR naming the feed
+rm -rf "$WORK2"; WORK2="$(mktemp -d)"
+python3 - "$TESTDATA/bundle-inputs.json" "$SERVE/bundle-inputs.json" <<'EOF'
+import json, sys
+m = json.load(open(sys.argv[1]))
+m["feeds"][0]["sha256"] = "0" * 64
+json.dump(m, open(sys.argv[2], "w"))
+EOF
+run_sourced "download_bundle_inputs" BUNDLE_DIR="$WORK2" BUNDLE_INPUTS_URL=http://fixtures.test/bundle-inputs.json
+[ "$RUN_STATUS" -ne 0 ] && pass "sha256 mismatch fails" || fail "sha256 mismatch fails"
+assert_contains "$RUN_OUTPUT" "ERROR: sha256 mismatch for feed 'metro'" "sha mismatch error names the feed"
+
+# sha256 match succeeds
+GOOD_SHA="$(sha256sum "$SERVE/metro.zip" | cut -d' ' -f1)"
+python3 - "$TESTDATA/bundle-inputs.json" "$SERVE/bundle-inputs.json" "$GOOD_SHA" <<'EOF'
+import json, sys
+m = json.load(open(sys.argv[1]))
+m["feeds"][0]["sha256"] = sys.argv[3]
+json.dump(m, open(sys.argv[2], "w"))
+EOF
+rm -rf "$WORK2"; WORK2="$(mktemp -d)"
+run_sourced "download_bundle_inputs" BUNDLE_DIR="$WORK2" BUNDLE_INPUTS_URL=http://fixtures.test/bundle-inputs.json
+[ "$RUN_STATUS" -eq 0 ] && pass "matching sha256 passes" || fail "matching sha256 passes: $RUN_OUTPUT"
+
+rm -rf "$WORK2"
+# NOTE: $STUBS2 and $SERVE are intentionally NOT removed here — Task 4's tests
+# reuse run_sourced (which references $STUBS2 in PATH). Cleanup happens at the
+# end of the file once all sourced-function tests are done.
+
 echo ""
 echo "=============================="
 echo "Results: $passed passed, $failed failed"
