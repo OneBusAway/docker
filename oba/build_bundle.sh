@@ -16,17 +16,14 @@
 # limitations under the License.
 #
 
-# Check that either GTFS_URL or GTFS_ZIP_FILENAME is set, but not both
-if [ -n "$GTFS_URL" ] && [ -n "$GTFS_ZIP_FILENAME" ]; then
-    echo "Error: Both GTFS_URL and GTFS_ZIP_FILENAME are set. Please provide only one."
-    exit 1
-fi
+set -euo pipefail
 
-if [ -z "$GTFS_URL" ] && [ -z "$GTFS_ZIP_FILENAME" ]; then
-    echo "Error: Neither GTFS_URL nor GTFS_ZIP_FILENAME is set. Please provide one."
-    exit 1
-fi
-
+# Normalize env so `set -u` can't trip on optional vars.
+GTFS_URL=${GTFS_URL:-}
+GTFS_ZIP_FILENAME=${GTFS_ZIP_FILENAME:-}
+BUNDLE_INPUTS_URL=${BUNDLE_INPUTS_URL:-}
+STOP_CONSOLIDATION_URL=${STOP_CONSOLIDATION_URL:-}
+OBA_VERSION=${OBA_VERSION:-}
 TDF_BUILDER_JAR=${TDF_BUILDER_JAR:-/oba/libs/onebusaway-transit-data-federation-builder-withAllDependencies.jar}
 
 # Run gtfstidy (https://github.com/patrickbr/gtfstidy) with the following options enabled by default:
@@ -41,43 +38,97 @@ TDF_BUILDER_JAR=${TDF_BUILDER_JAR:-/oba/libs/onebusaway-transit-data-federation-
 # -D: drop erroneous entries from feed
 GTFS_TIDY_ARGS=${GTFS_TIDY_ARGS:-OscRCSmeD}
 
-# Set default filename if using GTFS_URL
-if [ -n "$GTFS_URL" ]; then
-    GTFS_ZIP_FILENAME="gtfs_pristine.zip"
-fi
+# Overridable for tests; production always uses /bundle.
+BUNDLE_DIR=${BUNDLE_DIR:-/bundle}
 
-echo "OBA Bundle Builder Starting"
-if [ -n "$GTFS_URL" ]; then
-    echo "GTFS_URL: $GTFS_URL"
-else
-    echo "GTFS_ZIP_FILENAME: $GTFS_ZIP_FILENAME"
-fi
-echo "OBA Version: $OBA_VERSION"
-echo "GTFS Tidy Args: $GTFS_TIDY_ARGS"
-echo "TDF_BUILDER_JAR: $TDF_BUILDER_JAR"
-
-cd /bundle
-
-# Download GTFS file if URL is provided, otherwise use local file
-if [ -n "$GTFS_URL" ]; then
-    wget -O ${GTFS_ZIP_FILENAME} ${GTFS_URL}
-else
-    # Check if the local file exists
-    if [ ! -f "$GTFS_ZIP_FILENAME" ]; then
-        echo "Error: GTFS file not found: $GTFS_ZIP_FILENAME"
+validate_mode_env() {
+    if [ -n "$BUNDLE_INPUTS_URL" ] && { [ -n "$GTFS_URL" ] || [ -n "$GTFS_ZIP_FILENAME" ]; }; then
+        echo "Error: BUNDLE_INPUTS_URL cannot be combined with GTFS_URL or GTFS_ZIP_FILENAME. Please provide only one mode."
         exit 1
     fi
+
+    if [ -n "$BUNDLE_INPUTS_URL" ]; then
+        return 0
+    fi
+
+    # Check that either GTFS_URL or GTFS_ZIP_FILENAME is set, but not both
+    if [ -n "$GTFS_URL" ] && [ -n "$GTFS_ZIP_FILENAME" ]; then
+        echo "Error: Both GTFS_URL and GTFS_ZIP_FILENAME are set. Please provide only one."
+        exit 1
+    fi
+
+    if [ -z "$GTFS_URL" ] && [ -z "$GTFS_ZIP_FILENAME" ]; then
+        echo "Error: Neither GTFS_URL nor GTFS_ZIP_FILENAME is set. Please provide one."
+        exit 1
+    fi
+}
+
+bundle_mode() {
+    if [ -n "$BUNDLE_INPUTS_URL" ]; then
+        echo "multi"
+    else
+        echo "single"
+    fi
+}
+
+# fetch_url URL DEST LABEL — download with a one-line diagnostic on failure.
+fetch_url() {
+    local url="$1" dest="$2" label="$3"
+    if ! wget -O "$dest" "$url"; then
+        echo "ERROR: failed to download ${label} from ${url}" >&2
+        exit 1
+    fi
+}
+
+run_single_mode() {
+    # Set default filename if using GTFS_URL
+    if [ -n "$GTFS_URL" ]; then
+        GTFS_ZIP_FILENAME="gtfs_pristine.zip"
+    fi
+
+    echo "OBA Bundle Builder Starting"
+    if [ -n "$GTFS_URL" ]; then
+        echo "GTFS_URL: $GTFS_URL"
+    else
+        echo "GTFS_ZIP_FILENAME: $GTFS_ZIP_FILENAME"
+    fi
+    echo "OBA Version: $OBA_VERSION"
+    echo "GTFS Tidy Args: $GTFS_TIDY_ARGS"
+    echo "TDF_BUILDER_JAR: $TDF_BUILDER_JAR"
+
+    cd "$BUNDLE_DIR"
+
+    # Download GTFS file if URL is provided, otherwise use local file
+    if [ -n "$GTFS_URL" ]; then
+        fetch_url "$GTFS_URL" "$BUNDLE_DIR/$GTFS_ZIP_FILENAME" "GTFS feed"
+    else
+        # Check if the local file exists
+        if [ ! -f "$GTFS_ZIP_FILENAME" ]; then
+            echo "Error: GTFS file not found: $GTFS_ZIP_FILENAME"
+            exit 1
+        fi
+    fi
+
+    gtfstidy -"${GTFS_TIDY_ARGS}" "${GTFS_ZIP_FILENAME}"
+
+    if [[ -d "gtfs-out" ]]; then
+        cd gtfs-out
+        zip ../gtfs_tidied.zip *
+        cd ..
+        GTFS_ZIP_FILENAME="gtfs_tidied.zip"
+    fi
+
+    # The JAR must be executed from within the same directory
+    # as the bundle, or else some necessary files are not generated.
+    java -Xss4m -Xmx3g -jar "$TDF_BUILDER_JAR" ./"${GTFS_ZIP_FILENAME}" .
+}
+
+main() {
+    validate_mode_env
+    run_single_mode
+}
+
+# Main guard: allow tests to `source` this file without executing.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main
 fi
-
-gtfstidy -${GTFS_TIDY_ARGS} ${GTFS_ZIP_FILENAME}
-
-if [[ -d "gtfs-out" ]]; then
-    cd gtfs-out
-    zip ../gtfs_tidied.zip *
-    cd ..
-    GTFS_ZIP_FILENAME="gtfs_tidied.zip"
-fi
-
-# The JAR must be executed from within the same directory
-# as the bundle, or else some necessary files are not generated.
-java -Xss4m -Xmx3g -jar $TDF_BUILDER_JAR ./${GTFS_ZIP_FILENAME} .
