@@ -217,3 +217,49 @@ func TestFederationTemplateSingularAgencyId(t *testing.T) {
 		t.Errorf("did not expect plural agencyIds list:\n%s", out)
 	}
 }
+
+func TestFederationTemplateStopModificationStrategy(t *testing.T) {
+	json := `{"FEEDS":[` +
+		`{"tripUpdatesUrl":"https://a/trips","agencyIds":["1","40"]},` +
+		`{"vehiclePositionsUrl":"https://b/vehicles","agencyId":"3"},` +
+		`{"alertsUrl":"https://c/alerts"}` +
+		`]}`
+
+	out, err := renderTemplate(federationTemplatePath, json)
+	if err != nil {
+		t.Fatalf("renderTemplate returned an error: %v", err)
+	}
+	// Feeds with an agency id (list or singular) get the strategy; the
+	// agency-less feed must not.
+	if c := strings.Count(out, "ConsolidatedStopsModificationStrategy"); c != 2 {
+		t.Errorf("expected 2 strategy beans, got %d\n%s", c, out)
+	}
+	if c := strings.Count(out, `<property name="stopModificationStrategy">`); c != 2 {
+		t.Errorf("expected 2 stopModificationStrategy properties, got %d\n%s", c, out)
+	}
+	// Multi-agency feed: the strategy is namespaced to the FIRST listed agency.
+	// (Feed 1 uses the agencyIds list form, so the only `agencyId` property it
+	// renders is the strategy's.)
+	if !strings.Contains(out, `<property name="agencyId" value="1" />`) {
+		t.Errorf("strategy for multi-agency feed should use first agency:\n%s", out)
+	}
+	if strings.Contains(out, `<property name="agencyId" value="40" />`) {
+		t.Errorf("strategy must not be generated for non-first agencies:\n%s", out)
+	}
+}
+
+func TestFederationTemplateStopModificationStrategySingularAgency(t *testing.T) {
+	json := `{"FEEDS":[{"tripUpdatesUrl":"https://x/trips","agencyId":"unitrans"}]}`
+	out, err := renderTemplate(federationTemplatePath, json)
+	if err != nil {
+		t.Fatalf("renderTemplate returned an error: %v", err)
+	}
+	if c := strings.Count(out, "ConsolidatedStopsModificationStrategy"); c != 1 {
+		t.Errorf("expected 1 strategy bean, got %d\n%s", c, out)
+	}
+	// Singular form renders agencyId twice: once on the GtfsRealtimeSource,
+	// once on the strategy bean.
+	if c := strings.Count(out, `<property name="agencyId" value="unitrans" />`); c != 2 {
+		t.Errorf("expected agencyId on source and strategy, got %d\n%s", c, out)
+	}
+}
