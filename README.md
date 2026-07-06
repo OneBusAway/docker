@@ -98,6 +98,8 @@ You can find the latest published Docker images on Docker Hub:
   * `JDBC_PASSWORD` - The password for your database.
 * GTFS (Optional, required only when using `oba_app` independently)
   * `GTFS_URL` - The URL to the GTFS feed you want to use.
+  * `BUNDLE_INPUTS_URL` - URL to a bundle-inputs.json manifest for multi-input mode; specifies per-feed zips, agency IDs, and optional stop consolidation mapping. Mutually exclusive with GTFS_URL, GTFS_ZIP_FILENAME, and STOP_CONSOLIDATION_URL.
+  * `STOP_CONSOLIDATION_URL` - (Single-zip mode only) URL to a stop-consolidation mapping file applied during bundle build. Mutually exclusive with BUNDLE_INPUTS_URL.
 * GTFS-RT Support (Optional)
   * `TZ` - The timezone for the server. Ensure that the server's timezone matches the timezone specified in your static GTFS `agency.txt` file. The timezone format is the IANA standard, and [a full list of timezones can be found on Wikipedia](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List).
   * `GTFS_RT_FEEDS` - Preferred for configuring one OR many GTFS-RT feeds. A JSON array of feed objects; each object may contain `tripUpdatesUrl`, `vehiclePositionsUrl`, `alertsUrl`, `refreshInterval`, `agencyIds` (array), `feedApiKey`, and `feedApiValue`. Example: `[{"tripUpdatesUrl":"https://a/trips","agencyIds":["unitrans"]},{"vehiclePositionsUrl":"https://b/veh","agencyIds":["kcm"]}]`. When set, it takes precedence over the single-feed variables below.

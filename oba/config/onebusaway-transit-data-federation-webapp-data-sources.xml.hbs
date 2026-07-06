@@ -77,6 +77,22 @@
           <property name="agencyId" value="{{ this.agencyId }}" />
         {{/if}}
 
+        {{#if this.agencyIds.length}}
+          <!-- Remap GTFS-RT references to consolidated (replaced) stop ids.
+               No-op when the bundle has no StopConsolidation.txt. -->
+          <property name="stopModificationStrategy">
+            <bean class="org.onebusaway.transit_data_federation.impl.realtime.gtfs_realtime.ConsolidatedStopsModificationStrategy">
+              {{#each this.agencyIds}}{{#if @first}}<property name="agencyId" value="{{ this }}" />{{/if}}{{/each}}
+            </bean>
+          </property>
+        {{else if this.agencyId}}
+          <property name="stopModificationStrategy">
+            <bean class="org.onebusaway.transit_data_federation.impl.realtime.gtfs_realtime.ConsolidatedStopsModificationStrategy">
+              <property name="agencyId" value="{{ this.agencyId }}" />
+            </bean>
+          </property>
+        {{/if}}
+
         {{#if this.feedApiKey}}
           <property name="headersMap">
             <map>

@@ -25,6 +25,47 @@ jobs:
         working-directory: oba/config/template_renderer
         run: go test ./...
 
+  bundle_script:
+    name: build_bundle.sh unit tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Guard - oba and bundler scripts identical
+        run: diff oba/build_bundle.sh bundler/build_bundle.sh
+
+      - name: Run script tests
+        run: bash bin/build_bundle_test.sh
+
+  bundle_inputs_integration:
+    name: Bundle inputs integration (real builder)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Build oba image
+        run: |
+          docker buildx build \
+            --load \
+            -t oba-image:latest \
+            ./oba
+
+      - name: Run integration test
+        timeout-minutes: 20
+        run: |
+          chmod +x bin/bundle_inputs_integration_test.sh bin/testdata/build_bundle/make_fixtures.sh
+          bash bin/bundle_inputs_integration_test.sh
+
   image:
     name: Build Docker Image
     runs-on: ubuntu-latest
@@ -52,6 +93,11 @@ jobs:
   services:
     name: Services with Bundler
     runs-on: ubuntu-latest
+    # Build against a small committed GTFS fixture served on the compose network
+    # instead of the live Unitrans feed, so this job is deterministic. See
+    # docker-compose.ci.yml and bin/testdata/services/make_services_fixture.sh.
+    env:
+      COMPOSE_FILE: docker-compose.yml:docker-compose.ci.yml
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
