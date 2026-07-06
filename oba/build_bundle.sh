@@ -146,14 +146,11 @@ download_bundle_inputs() {
 
 # xml_attr_escape STRING — escape a value for a double-quoted XML attribute.
 # Manifest-derived ids/agency ids flow straight into bundle-context.xml, so a
-# stray &, <, >, or " would otherwise produce malformed XML.
+# stray &, <, >, or " would otherwise produce malformed XML. Uses sed rather
+# than bash ${//} substitution: bash 5.2+ treats a literal & in the replacement
+# as the matched text, which would mangle &lt;/&gt;/&quot; on newer runners.
 xml_attr_escape() {
-    local s="$1"
-    s="${s//&/&amp;}"
-    s="${s//</&lt;}"
-    s="${s//>/&gt;}"
-    s="${s//\"/&quot;}"
-    printf '%s' "$s"
+    printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g'
 }
 
 # generate_bundle_context_xml MANIFEST_JSON INPUTS_DIR MAPPING_PATH OUT_XML
