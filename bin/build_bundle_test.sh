@@ -257,6 +257,15 @@ else
     fail "context XML matches golden (no mapping)"
 fi
 
+# XML metacharacters in manifest-derived ids/agency ids must be escaped, not
+# emitted raw (which would produce malformed bundle-context.xml).
+cat > "$WORK3/inputs/special.json" <<'EOF'
+{"version": 1, "feeds": [{"id": "metro", "name": "n", "defaultAgencyId": "A&B<C", "url": "http://x/metro.zip"}]}
+EOF
+run_sourced "generate_bundle_context_xml '$WORK3/inputs/special.json' '$WORK3/inputs' '' '$WORK3/bundle-context-sp.xml'" \
+    BUNDLE_DIR="$WORK3"
+assert_contains "$(cat "$WORK3/bundle-context-sp.xml")" 'value="A&amp;B&lt;C"' "manifest agency id XML-escaped"
+
 rm -rf "$WORK3"
 
 # --- run_multi_mode end-to-end (stubbed java) ---------------------------------

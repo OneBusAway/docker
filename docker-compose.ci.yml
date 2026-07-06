@@ -1,0 +1,42 @@
+# CI-only override for the "Services with Bundler" job. Serves a small,
+# committed GTFS fixture over the compose network so the job is deterministic
+# and independent of the live Unitrans feed (see
+# bin/testdata/services/make_services_fixture.sh for why).
+#
+# Compose merges `environment` and `depends_on` across -f files, so this file
+# only carries the deltas; GTFS_URL here overrides the live default in
+# docker-compose.yml for both the bundler and the app. The bundler/app wait on
+# the fixture server's healthcheck so their wget can't race its startup.
+#
+# Usage: docker compose -f docker-compose.yml -f docker-compose.ci.yml ...
+services:
+  fixture_server:
+    image: python:3.12-slim
+    container_name: oba_fixture_server
+    command: python -m http.server 8000 --directory /fixtures
+    volumes:
+      - ./bin/testdata/services:/fixtures:ro
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://localhost:8000/services-gtfs.zip')
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 2s
+
+  oba_bundler:
+    depends_on:
+      fixture_server:
+        condition: service_healthy
+    environment:
+      - GTFS_URL=http://fixture_server:8000/services-gtfs.zip
+
+  oba_app:
+    depends_on:
+      fixture_server:
+        condition: service_healthy
+    environment:
+      - GTFS_URL=http://fixture_server:8000/services-gtfs.zip

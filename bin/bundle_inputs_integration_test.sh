@@ -38,7 +38,13 @@ EOF
 python3 -m http.server "$PORT" --directory "$SERVE" >/dev/null 2>&1 &
 SERVER_PID=$!
 trap 'kill $SERVER_PID 2>/dev/null; rm -rf "$SERVE" "$OUT_VALID" "$OUT_KM"' EXIT
-sleep 1
+
+# Poll until the fixture server answers, rather than a fixed sleep that can race
+# on a slow/loaded runner (the in-container wget calls would fail if it isn't up).
+for _ in $(seq 1 40); do
+    curl -sf "http://127.0.0.1:${PORT}/bundle-inputs.json" >/dev/null 2>&1 && break
+    sleep 0.25
+done
 
 run_build() {
     # --user matches the host user so the mounted output dir stays deletable

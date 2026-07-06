@@ -144,6 +144,18 @@ download_bundle_inputs() {
     fi
 }
 
+# xml_attr_escape STRING — escape a value for a double-quoted XML attribute.
+# Manifest-derived ids/agency ids flow straight into bundle-context.xml, so a
+# stray &, <, >, or " would otherwise produce malformed XML.
+xml_attr_escape() {
+    local s="$1"
+    s="${s//&/&amp;}"
+    s="${s//</&lt;}"
+    s="${s//>/&gt;}"
+    s="${s//\"/&quot;}"
+    printf '%s' "$s"
+}
+
 # generate_bundle_context_xml MANIFEST_JSON INPUTS_DIR MAPPING_PATH OUT_XML
 # Bean id "gtfs-bundles" and bean name "entityReplacementStrategy" are looked up
 # by those exact names inside the federation builder — do not rename.
@@ -161,15 +173,17 @@ generate_bundle_context_xml() {
             <list>
 XMLHEAD
 
-        local feed_count i id agency
+        local feed_count i id agency path
         feed_count="$(jq -r '.feeds | length' "$manifest")"
         i=0
         while [ "$i" -lt "$feed_count" ]; do
             id="$(jq -r ".feeds[$i].id" "$manifest")"
             agency="$(jq -r ".feeds[$i].defaultAgencyId" "$manifest")"
+            path="$(xml_attr_escape "${inputs_dir}/${id}.zip")"
+            agency="$(xml_attr_escape "$agency")"
             cat <<XMLFEED
                 <bean class="org.onebusaway.transit_data_federation.bundle.model.GtfsBundle">
-                    <property name="path" value="${inputs_dir}/${id}.zip" />
+                    <property name="path" value="${path}" />
                     <property name="defaultAgencyId" value="${agency}" />
                 </bean>
 XMLFEED
@@ -257,7 +271,7 @@ run_single_mode() {
 
     if [[ -d "gtfs-out" ]]; then
         cd gtfs-out
-        zip ../gtfs_tidied.zip *
+        zip ../gtfs_tidied.zip ./*
         cd ..
         GTFS_ZIP_FILENAME="gtfs_tidied.zip"
     fi

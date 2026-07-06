@@ -33,6 +33,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Guard - oba and bundler scripts identical
         run: diff oba/build_bundle.sh bundler/build_bundle.sh
@@ -43,9 +45,13 @@ jobs:
   bundle_inputs_integration:
     name: Bundle inputs integration (real builder)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Build oba image
         run: |
@@ -87,6 +93,11 @@ jobs:
   services:
     name: Services with Bundler
     runs-on: ubuntu-latest
+    # Build against a small committed GTFS fixture served on the compose network
+    # instead of the live Unitrans feed, so this job is deterministic. See
+    # docker-compose.ci.yml and bin/testdata/services/make_services_fixture.sh.
+    env:
+      COMPOSE_FILE: docker-compose.yml:docker-compose.ci.yml
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
