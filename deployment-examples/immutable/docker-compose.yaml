@@ -6,8 +6,9 @@ services:
       POSTGRES_USER: oba_user
       POSTGRES_PASSWORD: oba_password
       POSTGRES_DB: oba_database
+    # Published on loopback only: these are well-known development credentials.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - type: volume
         source: pg-data
