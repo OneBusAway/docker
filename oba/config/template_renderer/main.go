@@ -38,6 +38,15 @@ func renderTemplate(templatePath, jsonString string) (string, error) {
 	return result, nil
 }
 
+// writeOutput writes a rendered template. Rendered files carry credentials
+// (database password, feed API keys), so new files are not world-readable.
+func writeOutput(path, content string) error {
+	if err := os.WriteFile(path, []byte(content), 0640); err != nil {
+		return fmt.Errorf("error writing output file: %v", err)
+	}
+	return nil
+}
+
 func main() {
 	inputFile := flag.String("input", "", "my-template.hbs")
 	outputFile := flag.String("output", "", "my-output.html")
@@ -64,7 +73,10 @@ func main() {
 	}
 
 	if *outputFile != "" {
-		os.WriteFile(*outputFile, []byte(result), 0644)
+		if err := writeOutput(*outputFile, result); err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
 	} else {
 		fmt.Println(result)
 	}
