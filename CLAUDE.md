@@ -55,7 +55,8 @@ docker compose up
   - Outputs to `/bundle/` directory
 
 - `/oba/`: Docker setup for the OneBusAway application server
-  - Runs on Tomcat 8.5 with Java 11
+  - Runs on Tomcat 9.0 with Java 11; Tomcat and the bundle build run as the unprivileged `oba_user`
+  - `config/server.xml`: public API connector on 8080; the federation webapp (unauthenticated Hessian remoting) is served only on a loopback connector, 127.0.0.1:8081. Never expose it on the public port.
   - Template-based configuration for database connections
   - Supports GTFS-RT feeds
   - Includes Prometheus JMX exporter for monitoring
@@ -69,7 +70,7 @@ docker compose up
 
 - **Build System**: Maven-based Java project
 - **OneBusAway Version**: v2.7.1 (configurable via OBA_VERSION)
-- **Runtime**: Tomcat 8.5.100 with JDK 11
+- **Runtime**: Tomcat 9.0.x with JDK 11 (bundler image: Temurin 11 JRE, no Tomcat)
 - **Databases**: MySQL 8.0 or PostgreSQL 16
 - **GTFS Processing**: gtfstidy (Go-based optimizer)
 - **Template Engine**: Custom Handlebars renderer (Go)
@@ -94,7 +95,7 @@ GTFS-RT configuration:
 When running locally:
 - API webapp: http://localhost:8080/
 - Example: http://localhost:8080/api/where/agencies-with-coverage.json?key=TEST
-- Transit data federation: http://localhost:8080/onebusaway-transit-data-federation-webapp
+- Transit data federation: internal only, http://127.0.0.1:8081/onebusaway-transit-data-federation-webapp from inside the container (`docker compose exec oba_app ...`)
 
 ### Docker Images
 
