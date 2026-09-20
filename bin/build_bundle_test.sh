@@ -159,6 +159,11 @@ run_sourced() {
     rm -f "$tmp_out"
 }
 
+# serve_manifest [jq options] <jq filter> — serve the fixture manifest with one tweak
+serve_manifest() {
+    jq "$@" "$TESTDATA/bundle-inputs.json" > "$SERVE/bundle-inputs.json"
+}
+
 cp "$TESTDATA/bundle-inputs.json" "$SERVE/bundle-inputs.json"
 echo "zipbytes-metro"  > "$SERVE/metro.zip"
 echo "zipbytes-pierce" > "$SERVE/pierce.zip"
@@ -203,27 +208,26 @@ echo "zipbytes-pierce" > "$SERVE/pierce.zip"
 
 # sha256 mismatch → ERROR naming the feed
 rm -rf "$WORK2"; WORK2="$(mktemp -d)"
-python3 - "$TESTDATA/bundle-inputs.json" "$SERVE/bundle-inputs.json" <<'EOF'
-import json, sys
-m = json.load(open(sys.argv[1]))
-m["feeds"][0]["sha256"] = "0" * 64
-json.dump(m, open(sys.argv[2], "w"))
-EOF
+serve_manifest '.feeds[0].sha256 = ("0" * 64)'
 run_sourced "download_bundle_inputs" BUNDLE_DIR="$WORK2" BUNDLE_INPUTS_URL=http://fixtures.test/bundle-inputs.json
 [ "$RUN_STATUS" -ne 0 ] && pass "sha256 mismatch fails" || fail "sha256 mismatch fails"
 assert_contains "$RUN_OUTPUT" "ERROR: sha256 mismatch for feed 'metro'" "sha mismatch error names the feed"
 
 # sha256 match succeeds
 GOOD_SHA="$(sha256sum "$SERVE/metro.zip" | cut -d' ' -f1)"
-python3 - "$TESTDATA/bundle-inputs.json" "$SERVE/bundle-inputs.json" "$GOOD_SHA" <<'EOF'
-import json, sys
-m = json.load(open(sys.argv[1]))
-m["feeds"][0]["sha256"] = sys.argv[3]
-json.dump(m, open(sys.argv[2], "w"))
-EOF
+serve_manifest --arg sha "$GOOD_SHA" '.feeds[0].sha256 = $sha'
 rm -rf "$WORK2"; WORK2="$(mktemp -d)"
 run_sourced "download_bundle_inputs" BUNDLE_DIR="$WORK2" BUNDLE_INPUTS_URL=http://fixtures.test/bundle-inputs.json
 [ "$RUN_STATUS" -eq 0 ] && pass "matching sha256 passes" || fail "matching sha256 passes: $RUN_OUTPUT"
+
+# feed id is used as a filename: a manifest-supplied id with path separators
+# must be rejected before anything is written outside $BUNDLE_DIR/inputs
+rm -rf "$WORK2"; WORK2="$(mktemp -d)"
+serve_manifest '.feeds[0].id = "../escaped"'
+run_sourced "download_bundle_inputs" BUNDLE_DIR="$WORK2" BUNDLE_INPUTS_URL=http://fixtures.test/bundle-inputs.json
+[ "$RUN_STATUS" -ne 0 ] && pass "path-traversal feed id fails" || fail "path-traversal feed id fails"
+assert_contains "$RUN_OUTPUT" "ERROR: invalid feed id" "invalid feed id error message"
+[ ! -e "$WORK2/escaped.zip" ] && pass "nothing written outside inputs dir" || fail "nothing written outside inputs dir"
 
 rm -rf "$WORK2"
 # NOTE: $STUBS2 and $SERVE are intentionally NOT removed here — Task 4's tests

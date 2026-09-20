@@ -114,6 +114,12 @@ download_bundle_inputs() {
     i=0
     while [ "$i" -lt "$feed_count" ]; do
         id="$(jq -r ".feeds[$i].id" "$manifest")"
+        # The id becomes a filename under $inputs_dir; the manifest is remote
+        # content, so refuse anything that could escape that directory.
+        if [[ ! "$id" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+            echo "ERROR: invalid feed id '${id}' in bundle-inputs manifest (allowed: letters, digits, '.', '_', '-')" >&2
+            exit 1
+        fi
         url="$(jq -r ".feeds[$i].url" "$manifest")"
         sha="$(jq -r ".feeds[$i].sha256 // empty" "$manifest")"
         dest="$inputs_dir/${id}.zip"
