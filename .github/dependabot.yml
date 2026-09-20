@@ -1,0 +1,23 @@
+# Base images, Actions, and Go modules are pinned for reproducibility and
+# supply-chain safety; Dependabot keeps the pins from going stale.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directories:
+      - /oba
+      - /bundler
+    schedule:
+      interval: weekly
+    ignore:
+      # Tomcat 10+ moved to the jakarta.* namespace; the OneBusAway webapps are
+      # javax.* and will not deploy on it. Stay on the 9.0.x line.
+      - dependency-name: tomcat
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: gomod
+    directory: /oba/config/template_renderer
+    schedule:
+      interval: weekly
