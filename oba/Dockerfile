@@ -213,7 +213,7 @@ COPY ./jmx_exporter_config.yml /app/jmx_exporter_config.yml
 ENV JAVA_OPTS="-javaagent:/app/jmx_prometheus_javaagent.jar=1234:/app/jmx_exporter_config.yml"
 
 # Hardened Tomcat configuration: public API connector on 8080, the federation
-# webapp (unauthenticated Hessian remoting) on a loopback-only connector,
+# webapp (internal remoting interface) on a loopback-only connector,
 # shutdown port disabled, no stack traces or version banner in error pages.
 COPY ./config/server.xml $CATALINA_HOME/conf/server.xml
 

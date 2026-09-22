@@ -8,8 +8,8 @@
   deliberately added here, rather than showing up on the public port:
 
   * CatalinaInternal (127.0.0.1:8081) - loopback only. Serves ONLY the
-    transit-data-federation webapp, whose Hessian remoting endpoint
-    deserializes request bodies without authentication and must never be
+    transit-data-federation webapp. Its remoting endpoint is an internal
+    interface for the API webapp, not a public API, and must never be
     reachable from outside the container.
   * Catalina (0.0.0.0:8080)           - public. Serves ONLY the API webapp (ROOT).
 

@@ -62,7 +62,7 @@ The container runs two web apps:
 
 * onebusaway-api-webapp, hosted at http://localhost:8080/
   * Example API call: http://localhost:8080/api/where/agencies-with-coverage.json?key=TEST
-* onebusaway-transit-data-federation-webapp, which does the heavy lifting of exposing the transit data bundle to the API webapp. It is an internal service: it listens only on `127.0.0.1:8081` *inside* the container and is deliberately not reachable from your host or the network. (Its remoting endpoint is unauthenticated, so it must never be exposed. See [Security](#security).)
+* onebusaway-transit-data-federation-webapp, which does the heavy lifting of exposing the transit data bundle to the API webapp. It is an internal service: it listens only on `127.0.0.1:8081` *inside* the container and is deliberately not reachable from your host or the network. (Its remoting endpoint is an internal interface, not a public API, and must never be exposed. See [Security](#security).)
   * To poke at it for debugging: `docker compose exec oba_app wget -qO- http://127.0.0.1:8081/onebusaway-transit-data-federation-webapp/`
 
 When done using this web server, you can use the shell-standard `^C` to exit out and turn it off. If issues persist across runs, you can try using `docker compose down -v` and then `docker compose up oba_app` to refresh the Docker containers and services.
@@ -94,7 +94,7 @@ You can find the latest published Docker images on Docker Hub:
 
 The images are built to be safe by default, but a few things are the operator's responsibility:
 
-* **Only publish port 8080.** The federation webapp's unauthenticated Hessian remoting endpoint is bound to loopback (`127.0.0.1:8081`) inside the container and is not served on 8080. Don't add a proxy inside the container's network namespace that forwards to 8081.
+* **Only publish port 8080.** The federation webapp's internal remoting endpoint is bound to loopback (`127.0.0.1:8081`) inside the container and is not served on 8080. Don't add a proxy inside the container's network namespace that forwards to 8081.
 * **Port 1234 (Prometheus JMX exporter) is unauthenticated.** Keep it on a private network or loopback; don't publish it to the internet.
 * **Use real credentials.** The passwords in `docker-compose.yml`, `docker-compose.standalone.yml`, the examples, and `oba.yaml` are public development placeholders, and those files bind database ports to `127.0.0.1` for that reason. `docker-compose.prod.yml` refuses to start until you provide `MYSQL_ROOT_PASSWORD` and `MYSQL_PASSWORD`. Never publish a database port to the internet.
 * **Don't set `TEST_API_KEY` in production.**

@@ -56,7 +56,7 @@ docker compose up
 
 - `/oba/`: Docker setup for the OneBusAway application server
   - Runs on Tomcat 9.0 with Java 11; Tomcat and the bundle build run as the unprivileged `oba_user`
-  - `config/server.xml`: public API connector on 8080; the federation webapp (unauthenticated Hessian remoting) is served only on a loopback connector, 127.0.0.1:8081. Never expose it on the public port.
+  - `config/server.xml`: public API connector on 8080; the federation webapp (internal remoting interface) is served only on a loopback connector, 127.0.0.1:8081. Never expose it on the public port.
   - Template-based configuration for database connections
   - Supports GTFS-RT feeds
   - Includes Prometheus JMX exporter for monitoring
