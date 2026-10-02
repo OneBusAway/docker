@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/json"
+	"encoding/xml"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -261,5 +264,54 @@ func TestFederationTemplateStopModificationStrategySingularAgency(t *testing.T) 
 	// once on the strategy bean.
 	if c := strings.Count(out, `<property name="agencyId" value="unitrans" />`); c != 2 {
 		t.Errorf("expected agencyId on source and strategy, got %d\n%s", c, out)
+	}
+}
+
+// writeOutput must report a failed write rather than swallow it; main turns
+// that error into the non-zero exit status bootstrap.sh checks.
+func TestWriteOutputReportsFailure(t *testing.T) {
+	missingDir := filepath.Join(t.TempDir(), "does-not-exist", "out.xml")
+	if err := writeOutput(missingDir, "content"); err == nil {
+		t.Fatal("expected an error writing into a nonexistent directory, got nil")
+	}
+}
+
+// Rendered files hold database and feed credentials, so they must not be
+// created world-readable.
+func TestWriteOutputIsNotWorldReadable(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "out.xml")
+	if err := writeOutput(out, "content"); err != nil {
+		t.Fatalf("writeOutput: %v", err)
+	}
+	info, err := os.Stat(out)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm&0o007 != 0 {
+		t.Errorf("output file mode %o is accessible to 'other'", perm)
+	}
+}
+
+// Env-var values land inside double-quoted XML attributes. A value containing
+// quotes or angle brackets must not be able to break out of the attribute and
+// inject attributes or elements into Tomcat's context.xml.
+func TestContextTemplateEscapesAttributeBreakout(t *testing.T) {
+	payload := `pw" url="jdbc:evil"><Injected a="`
+	jsonData, err := json.Marshal(map[string]string{
+		"JDBC_URL": "jdbc:postgresql://db/oba", "JDBC_DRIVER": "org.postgresql.Driver",
+		"JDBC_USER": "oba", "JDBC_PASSWORD": payload,
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	result, err := renderTemplate("../context.xml.hbs", string(jsonData))
+	if err != nil {
+		t.Fatalf("renderTemplate: %v", err)
+	}
+	if strings.Contains(result, "<Injected") || strings.Contains(result, `url="jdbc:evil"`) {
+		t.Errorf("attribute breakout was not escaped:\n%s", result)
+	}
+	if err := xml.Unmarshal([]byte(result), new(struct{})); err != nil {
+		t.Errorf("rendered context.xml is not well-formed: %v", err)
 	}
 }

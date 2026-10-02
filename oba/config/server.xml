@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Tomcat server configuration for the OneBusAway API image.
+
+  Two services share the `webapps` directory but deploy different apps. Each
+  Host's deployIgnore is an allowlist (ignore everything except one app), so
+  anything else that lands in `webapps` is deployed nowhere until it is
+  deliberately added here, rather than showing up on the public port:
+
+  * CatalinaInternal (127.0.0.1:8081) - loopback only. Serves ONLY the
+    transit-data-federation webapp. Its remoting endpoint is an internal
+    interface for the API webapp, not a public API, and must never be
+    reachable from outside the container.
+  * Catalina (0.0.0.0:8080)           - public. Serves ONLY the API webapp (ROOT).
+
+  Order matters: Tomcat starts services in document order, and each service
+  opens its connector as soon as its own webapp is deployed. CatalinaInternal
+  comes first so the public port only starts answering once the federation
+  webapp (which can take minutes to load a large bundle) is up; otherwise
+  health checks on 8080 pass while every API call still fails or hangs.
+
+  The shutdown port is disabled (port="-1"); supervisord manages the process.
+-->
+<Server port="-1" shutdown="SHUTDOWN">
+  <Listener className="org.apache.catalina.startup.VersionLoggerListener" />
+  <Listener className="org.apache.catalina.core.JreMemoryLeakPreventionListener" />
+  <Listener className="org.apache.catalina.mbeans.GlobalResourcesLifecycleListener" />
+  <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
+
+  <Service name="CatalinaInternal">
+    <Connector port="8081" address="127.0.0.1" protocol="HTTP/1.1"
+               connectionTimeout="20000"
+               maxParameterCount="1000"
+               xpoweredBy="false" />
+    <Engine name="CatalinaInternal" defaultHost="localhost">
+      <Host name="localhost" appBase="webapps"
+            unpackWARs="false" autoDeploy="false" deployOnStartup="true"
+            deployIgnore="(?!onebusaway-transit-data-federation-webapp$).*">
+        <Valve className="org.apache.catalina.valves.ErrorReportValve"
+               showReport="false" showServerInfo="false" />
+      </Host>
+    </Engine>
+  </Service>
+
+  <Service name="Catalina">
+    <Connector port="8080" protocol="HTTP/1.1"
+               connectionTimeout="20000"
+               maxParameterCount="1000"
+               xpoweredBy="false"
+               server="OneBusAway" />
+    <Engine name="Catalina" defaultHost="localhost">
+      <Host name="localhost" appBase="webapps"
+            unpackWARs="false" autoDeploy="false" deployOnStartup="true"
+            deployIgnore="(?!ROOT$).*">
+        <!-- Don't leak stack traces or the Tomcat version in error pages. -->
+        <Valve className="org.apache.catalina.valves.ErrorReportValve"
+               showReport="false" showServerInfo="false" />
+        <Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"
+               prefix="localhost_access_log" suffix=".txt"
+               pattern="%h %l %u %t &quot;%r&quot; %s %b" />
+      </Host>
+    </Engine>
+  </Service>
+</Server>

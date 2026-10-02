@@ -58,11 +58,12 @@ Once you have built an OBA bundle inside `./bundle`, you can run the OBA server 
 docker compose up oba_app
 ```
 
-You will then have two web apps available:
+The container runs two web apps:
 
 * onebusaway-api-webapp, hosted at http://localhost:8080/
   * Example API call: http://localhost:8080/api/where/agencies-with-coverage.json?key=TEST
-* onebusaway-transit-data-federation-webapp, which does the heavy lifting of exposing the transit data bundle to other services: http://localhost:8080/onebusaway-transit-data-federation-webapp
+* onebusaway-transit-data-federation-webapp, which does the heavy lifting of exposing the transit data bundle to the API webapp. It is an internal service: it listens only on `127.0.0.1:8081` *inside* the container and is deliberately not reachable from your host or the network. (Its remoting endpoint is an internal interface, not a public API, and must never be exposed. See [Security](#security).)
+  * To poke at it for debugging: `docker compose exec oba_app wget -qO- http://127.0.0.1:8081/onebusaway-transit-data-federation-webapp/`
 
 When done using this web server, you can use the shell-standard `^C` to exit out and turn it off. If issues persist across runs, you can try using `docker compose down -v` and then `docker compose up oba_app` to refresh the Docker containers and services.
 
@@ -74,7 +75,7 @@ If you have a local GTFS file instead of downloading from a URL, see the [`examp
 
 The Docker Compose database service should remain up after a call of `docker compose up oba_app`. Otherwise, you can always invoke it using `docker compose up oba_database`.
 
-A database port is open to your host machine, so you can connect to it programmatically using `mysql`:
+A database port is open to your host machine (on `127.0.0.1` only, since the development credentials are public), so you can connect to it programmatically using `mysql`:
 
 ```bash
 mysql -u oba_user -p -h localhost:3306
@@ -88,6 +89,19 @@ You can find the latest published Docker images on Docker Hub:
 
 * [onebusaway-bundle-builder](https://hub.docker.com/r/opentransitsoftwarefoundation/onebusaway-bundle-builder) - This image is built from the `bundler` directory and contains the functionality needed to create a transit data bundle from a GTFS feed.
 * [onebusaway-api-webapp](https://hub.docker.com/r/opentransitsoftwarefoundation/onebusaway-api-webapp) - This image is built from the `oba` directory and contains the functionality needed to run the OBA API webapp.
+
+### Security
+
+The images are built to be safe by default, but a few things are the operator's responsibility:
+
+* **Only publish port 8080.** The federation webapp's internal remoting endpoint is bound to loopback (`127.0.0.1:8081`) inside the container and is not served on 8080. Don't add a proxy inside the container's network namespace that forwards to 8081.
+* **Port 1234 (Prometheus JMX exporter) is unauthenticated.** Keep it on a private network or loopback; don't publish it to the internet.
+* **Use real credentials.** The passwords in `docker-compose.yml`, `docker-compose.standalone.yml`, the examples, and `oba.yaml` are public development placeholders, and those files bind database ports to `127.0.0.1` for that reason. `docker-compose.prod.yml` refuses to start until you provide `MYSQL_ROOT_PASSWORD` and `MYSQL_PASSWORD`. Never publish a database port to the internet.
+* **Don't set `TEST_API_KEY` in production.**
+* **Built-in API keys.** The image registers the API keys used by the official OneBusAway iOS and Android apps so that those apps work against your server. OneBusAway API keys identify and rate-limit clients; they are not a secret and do not protect data.
+* **Least privilege inside the container.** Tomcat and the bundle build (which downloads and parses third-party GTFS data) run as the unprivileged `oba_user`. The Tomcat installation, rendered config files (which contain your database password), and the bundle are owned by root and are read-only to the webapp.
+* **Upgrading with `USER_CONFIGURED=1`?** If you supply your own `data-sources.xml` for the API webapp, its `transitDataService` `serviceUrl` must now be `http://127.0.0.1:8081/onebusaway-transit-data-federation-webapp/remoting/transit-data-service` (it was `localhost:8080`). The container refuses to start if it sees the old URL.
+* **Rebuild regularly.** Base images are pinned to patch versions and kept current by Dependabot; rebuilding picks up OS and JVM security updates.
 
 ### Deployment Parameters
 

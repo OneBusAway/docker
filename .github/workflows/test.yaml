@@ -6,18 +6,22 @@ on:
       - main
   pull_request:
 
+# Least privilege by default: these jobs only need to read the repository.
+permissions:
+  contents: read
+
 jobs:
   renderer:
     name: Template renderer tests
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: "1.22"
 
@@ -28,16 +32,24 @@ jobs:
   bundle_script:
     name: build_bundle.sh unit tests
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
 
       - name: Guard - oba and bundler scripts identical
         run: diff oba/build_bundle.sh bundler/build_bundle.sh
+
+      # The two images are separate build contexts, so the gtfstidy pin lives in
+      # both Dockerfiles and Dependabot doesn't track it. Catch drift here.
+      - name: Guard - gtfstidy pinned to the same version in both images
+        # grep runs outside a process substitution so a missing pin fails the
+        # step instead of comparing two empty outputs and passing.
+        run: |
+          oba_pin="$(grep '^ARG GTFSTIDY_VERSION=' oba/Dockerfile)"
+          bundler_pin="$(grep '^ARG GTFSTIDY_VERSION=' bundler/Dockerfile)"
+          [ "$oba_pin" = "$bundler_pin" ] || { echo "oba: $oba_pin"; echo "bundler: $bundler_pin"; exit 1; }
 
       - name: Run script tests
         run: bash bin/build_bundle_test.sh
@@ -45,11 +57,9 @@ jobs:
   bundle_inputs_integration:
     name: Bundle inputs integration (real builder)
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
 
@@ -71,10 +81,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Build bundler image
         run: |
@@ -100,7 +112,9 @@ jobs:
       COMPOSE_FILE: docker-compose.yml:docker-compose.ci.yml
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Build bundle
         run: |
@@ -126,12 +140,11 @@ jobs:
   services_standalone:
     name: Services standalone
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Docker Compose up
         run: |

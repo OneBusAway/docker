@@ -108,6 +108,15 @@ spec:
         - name: bundle-volume
           emptyDir: {}
 ---
+# WARNING: development-only placeholder credentials. These values are public
+# (base64 is an encoding, not encryption). For any real deployment, delete this
+# Secret from the manifest and create it out-of-band with generated values:
+#
+#   DB_PASSWORD="$(openssl rand -base64 32)"   # MYSQL_PASSWORD and JDBC_PASSWORD must match
+#   kubectl -n oba create secret generic oba-secrets \
+#     --from-literal=MYSQL_ROOT_PASSWORD="$(openssl rand -base64 32)" \
+#     --from-literal=MYSQL_PASSWORD="$DB_PASSWORD" \
+#     --from-literal=JDBC_PASSWORD="$DB_PASSWORD"
 apiVersion: v1
 kind: Secret
 metadata:

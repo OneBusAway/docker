@@ -22,6 +22,8 @@ Apply the Kubernetes resources in oba.yaml
 kubectl apply -f oba.yaml
 ```
 
+> **Security note:** `oba.yaml` ships a `Secret` containing well-known placeholder passwords so the example works out of the box on a local cluster. Do not use it as-is anywhere reachable by others — remove that `Secret` from the manifest and create `oba-secrets` yourself with generated values (see the comment above the `Secret` in `oba.yaml`).
+
 The YAML file deploys the OneBusAway application and a MySQL database within a dedicated oba namespace in Kubernetes. It also sets up a secret for sensitive data and a ConfigMap for GTFS data URL, while exposing the database as a service for other pods to access.
 
 You can portforward the oba app to your localhost using:

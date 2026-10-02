@@ -1,18 +1,23 @@
 ARG OBA_VERSION=2.7.1
 ARG POSTGRESQL_CONNECTOR_VERSION=42.7.4
 ARG MYSQL_CONNECTOR_VERSION=8.4.0
+# Pinned so image contents are reproducible and an upstream compromise of a
+# moving target (@latest) can't silently land in a release. Bump deliberately.
+ARG GTFSTIDY_VERSION=v0.0.0-20260823202512-95d4796d9e7c
 
 ##############
 # Go Builder #
 ##############
 
-FROM golang:1.24.4-bookworm AS gobuilder
+FROM golang:1.26.8-bookworm AS gobuilder
+
+ARG GTFSTIDY_VERSION
 
 # Install gtfstidy - https://github.com/patrickbr/gtfstidy
 WORKDIR /src
 COPY ./set_goarch.sh .
 RUN ./set_goarch.sh
-RUN CGO_ENABLED=0 go install github.com/patrickbr/gtfstidy@latest
+RUN CGO_ENABLED=0 go install github.com/patrickbr/gtfstidy@${GTFSTIDY_VERSION}
 
 # Build the template renderer, which is called hbs_renderer
 WORKDIR /oba/template_renderer
@@ -23,7 +28,7 @@ RUN CGO_ENABLED=0 go build -o hbs_renderer
 # Java Builder #
 ################
 
-FROM tomcat:8.5.100-jdk11-temurin AS builder
+FROM tomcat:9.0.122-jdk11-temurin-jammy AS builder
 
 ARG OBA_VERSION
 ENV OBA_VERSION=${OBA_VERSION}
@@ -56,7 +61,7 @@ RUN ./retrieve_maven_artifacts.sh
 # Server #
 ##########
 
-FROM tomcat:8.5.100-jdk11-temurin AS server
+FROM tomcat:9.0.122-jdk11-temurin-jammy AS server
 
 ARG GTFS_TIDY_ARGS
 ENV GTFS_TIDY_ARGS=${GTFS_TIDY_ARGS}
@@ -90,7 +95,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install supervisord-dependent-startup
+RUN pip install --no-cache-dir supervisord-dependent-startup==1.4.0 toposort==1.10
 RUN apt remove -y python3-pip
 
 COPY --from=gobuilder /oba/template_renderer/hbs_renderer /usr/local/bin/hbs_renderer
@@ -99,12 +104,21 @@ COPY --from=gobuilder /go/bin/gtfstidy /usr/local/bin/gtfstidy
 # Set the configured time zone
 RUN ln -fs /usr/share/zoneinfo/$TZ /etc/localtime && dpkg-reconfigure -f noninteractive tzdata
 
-# Create a non-root user and assign them ownership of tomcat
+# Create the non-root user that Tomcat and the bundle build run as. The Tomcat
+# installation itself (bin, conf, lib, webapps) stays owned by root so that a
+# compromised webapp cannot rewrite its own code or configuration; the user only
+# gets the directories Tomcat has to write to at runtime. The per-engine conf
+# directories are created here because Tomcat can no longer create them itself.
 RUN groupadd -g $GID $GROUP && \
     useradd -d /home/$USER -u $UID -m -s /bin/bash -g $GROUP $USER && \
-    chown -R $USER:$GROUP $CATALINA_HOME && \
-    mkdir -p /var/log/tomcat8 && \
-    chown -R $USER:$GROUP /var/log/tomcat8
+    mkdir -p $CATALINA_HOME/conf/Catalina/localhost \
+             $CATALINA_HOME/conf/CatalinaInternal/localhost \
+             /var/log/tomcat8 && \
+    chown -R $USER:$GROUP \
+        $CATALINA_HOME/logs \
+        $CATALINA_HOME/temp \
+        $CATALINA_HOME/work \
+        /var/log/tomcat8
 
 ##########
 # Configure OBA Bundle Builder
@@ -140,7 +154,6 @@ WORKDIR $CATALINA_HOME/webapps
 ##########
 
 COPY --from=builder \
-    --chown=oba_user:oba_group \
     /oba/libs/onebusaway-api-webapp.war .
 
 RUN mkdir ROOT && \
@@ -149,12 +162,10 @@ RUN mkdir ROOT && \
     rm ../onebusaway-api-webapp.war
 
 COPY --from=builder \
-    --chown=oba_user:oba_group \
     /oba/libs/mysql-connector-j.jar \
     $CATALINA_HOME/webapps/ROOT/WEB-INF/lib/
 
 COPY --from=builder \
-    --chown=oba_user:oba_group \
     /oba/libs/postgresql.jar \
     $CATALINA_HOME/webapps/ROOT/WEB-INF/lib/
 
@@ -167,7 +178,6 @@ RUN chmod 755 /opt/oba/logs
 ##########
 
 COPY --from=builder \
-    --chown=oba_user:oba_group \
     /oba/libs/onebusaway-transit-data-federation-webapp.war .
 
 RUN mkdir onebusaway-transit-data-federation-webapp && \
@@ -176,12 +186,10 @@ RUN mkdir onebusaway-transit-data-federation-webapp && \
     rm ../onebusaway-transit-data-federation-webapp.war
 
 COPY --from=builder \
-    --chown=oba_user:oba_group \
     /oba/libs/mysql-connector-j.jar \
     onebusaway-transit-data-federation-webapp/WEB-INF/lib/
 
 COPY --from=builder \
-    --chown=oba_user:oba_group \
     /oba/libs/postgresql.jar \
     onebusaway-transit-data-federation-webapp/WEB-INF/lib/
 
@@ -194,15 +202,20 @@ RUN rm -rf /oba/webapps
 
 # Jmx exporter
 
+ARG JMX_EXPORTER_VERSION=0.19.0
+ARG JMX_EXPORTER_SHA256=fb507001996c9af38709c110de32517f7592c818bb33e18bc5fe94e076d24c1f
 RUN mkdir -p /app && \
-    wget -O /app/jmx_prometheus_javaagent.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.19.0/jmx_prometheus_javaagent-0.19.0.jar
+    wget -O /app/jmx_prometheus_javaagent.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/${JMX_EXPORTER_VERSION}/jmx_prometheus_javaagent-${JMX_EXPORTER_VERSION}.jar && \
+    echo "${JMX_EXPORTER_SHA256}  /app/jmx_prometheus_javaagent.jar" | sha256sum -c -
 COPY ./jmx_exporter_config.yml /app/jmx_exporter_config.yml
 
 # Set JVM options to include JMX exporter
 ENV JAVA_OPTS="-javaagent:/app/jmx_prometheus_javaagent.jar=1234:/app/jmx_exporter_config.yml"
-# Disable the Tomcat shutdown port (8005) to prevent health check
-# requests from being logged as invalid shutdown commands.
-RUN sed -i 's/port="8005"/port="-1"/' $CATALINA_HOME/conf/server.xml
+
+# Hardened Tomcat configuration: public API connector on 8080, the federation
+# webapp (internal remoting interface) on a loopback-only connector,
+# shutdown port disabled, no stack traces or version banner in error pages.
+COPY ./config/server.xml $CATALINA_HOME/conf/server.xml
 
 ##########
 # Bootstrapper and Supervisor

@@ -60,7 +60,7 @@ services:
       - oba-bundle:/bundle
     ports:
       - "8080:8080"
-      - "1234:1234" # JMX exporter port
+      - "127.0.0.1:1234:1234" # JMX exporter port (unauthenticated; keep off public interfaces)
 
 volumes:
   oba-bundle:
