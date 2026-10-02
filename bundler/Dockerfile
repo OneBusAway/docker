@@ -44,7 +44,7 @@ RUN mkdir libs && \
 ###########
 
 # The bundler only needs a JVM, not a servlet container.
-FROM eclipse-temurin:11.0.32_9-jre-jammy
+FROM eclipse-temurin:22.0.2_9-jre-jammy
 ARG OBA_VERSION
 ENV OBA_VERSION=${OBA_VERSION}
 
