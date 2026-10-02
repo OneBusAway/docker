@@ -100,7 +100,7 @@ The images are built to be safe by default, but a few things are the operator's 
 * **Don't set `TEST_API_KEY` in production.**
 * **Built-in API keys.** The image registers the API keys used by the official OneBusAway iOS and Android apps so that those apps work against your server. OneBusAway API keys identify and rate-limit clients; they are not a secret and do not protect data.
 * **Least privilege inside the container.** Tomcat and the bundle build (which downloads and parses third-party GTFS data) run as the unprivileged `oba_user`. The Tomcat installation, rendered config files (which contain your database password), and the bundle are owned by root and are read-only to the webapp.
-* **Upgrading with `USER_CONFIGURED=1`?** If you supply your own `data-sources.xml` for the API webapp, its `transitDataService` `serviceUrl` must now be `http://127.0.0.1:8081/onebusaway-transit-data-federation-webapp/remoting/transit-data-service` (it was `localhost:8080`). The container logs an error at startup if it sees the old URL.
+* **Upgrading with `USER_CONFIGURED=1`?** If you supply your own `data-sources.xml` for the API webapp, its `transitDataService` `serviceUrl` must now be `http://127.0.0.1:8081/onebusaway-transit-data-federation-webapp/remoting/transit-data-service` (it was `localhost:8080`). The container refuses to start if it sees the old URL.
 * **Rebuild regularly.** Base images are pinned to patch versions and kept current by Dependabot; rebuilding picks up OS and JVM security updates.
 
 ### Deployment Parameters

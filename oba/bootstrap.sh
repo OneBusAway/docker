@@ -20,22 +20,26 @@ if [ -n "$GTFS_URL" ]; then
     mkdir -p /bundle
     # The build downloads and parses third-party GTFS data, so it runs as the
     # unprivileged user rather than root.
-    chown -R "$OBA_USER:$OBA_GROUP" /bundle
+    chown -R "$OBA_USER:$OBA_GROUP" /bundle \
+        || abort "could not prepare /bundle for the bundle build"
     setpriv --reuid="$OBA_USER" --regid="$OBA_GROUP" --init-groups \
-        env HOME="/home/$OBA_USER" /oba/build_bundle.sh
+        env HOME="/home/$OBA_USER" /oba/build_bundle.sh \
+        || abort "bundle build failed; not starting Tomcat on a missing or partial bundle"
 fi
 
 # Whoever built the bundle (this script or the separate bundler image), the
 # running webapp only needs to read it. Hand it to root, group-readable by the
 # Tomcat group, so a compromised webapp cannot tamper with the transit data it
 # serves but can still read a bundle that was built with a restrictive umask.
+# Group and other write bits are cleared too: the group is Tomcat's, so a
+# group-writable entry (e.g. from a bind mount) would stay writable to it.
 # Only files that aren't already root's are touched: chown on an image-baked
 # bundle would copy every file into the container's writable layer.
 # chmod is limited to regular files and directories (find does not follow
 # symlinks) and chown uses -h, so a symlink planted by the unprivileged build
 # can't redirect either one at a file outside /bundle.
 if [ -d /bundle ]; then
-    { find /bundle ! -user root \( -type f -o -type d \) -exec chmod g+rX {} + \
+    { find /bundle ! -user root \( -type f -o -type d \) -exec chmod g+rX,go-w {} + \
         && find /bundle ! -user root -exec chown -h "root:$OBA_GROUP" {} + ; } 2>/dev/null \
         || echo "WARNING: could not change ownership of /bundle (read-only mount?); continuing."
 fi
@@ -45,14 +49,12 @@ API_XML_DESTINATION="$CATALINA_HOME/webapps/ROOT/WEB-INF/classes/data-sources.xm
 
 # For users who want to configure the data-sources.xml file and database themselves
 if [ -n "$USER_CONFIGURED" ]; then
-    echo "USER_CONFIGURED is set, you should create your own configuration file, Aborting..."
+    echo "USER_CONFIGURED is set; skipping data-sources.xml rendering. Supply your own configuration files."
     # The federation webapp moved off the public port (see conf/server.xml). A
     # user-supplied config written for older images still points at :8080 and
-    # would fail at runtime with connection errors, so call it out here.
+    # would fail every API request with connection errors, so refuse to start.
     if grep -qE '(localhost|127\.0\.0\.1):8080/onebusaway-transit-data-federation-webapp' "$API_XML_DESTINATION" 2>/dev/null; then
-        echo "ERROR: $API_XML_DESTINATION points the transitDataService at port 8080." >&2
-        echo "ERROR: the federation webapp is now only served on the loopback-only internal connector." >&2
-        echo "ERROR: change the serviceUrl to http://127.0.0.1:8081/onebusaway-transit-data-federation-webapp/remoting/transit-data-service" >&2
+        abort "$API_XML_DESTINATION points the transitDataService at port 8080, but the federation webapp is now only served on the loopback-only internal connector. Change the serviceUrl to http://127.0.0.1:8081/onebusaway-transit-data-federation-webapp/remoting/transit-data-service"
     fi
     exit 0
 fi
