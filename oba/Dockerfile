@@ -9,7 +9,7 @@ ARG GTFSTIDY_VERSION=v0.0.0-20260823202512-95d4796d9e7c
 # Go Builder #
 ##############
 
-FROM golang:1.26.8-bookworm AS gobuilder
+FROM golang:1.27.1-bookworm AS gobuilder
 
 ARG GTFSTIDY_VERSION
 
