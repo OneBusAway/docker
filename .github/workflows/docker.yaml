@@ -30,7 +30,7 @@ jobs:
       cancel-in-progress: true
     steps:
       - name: Checkout code
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -85,7 +85,7 @@ jobs:
           # Extract the software version (e.g., 2.6.0-v1.0.0) and add -latest
           echo "LATEST_TAG=$(echo $GITHUB_REF_NAME | sed 's/-v[0-9]\+\.[0-9]\+\.[0-9]\+/-latest/')" >> $GITHUB_ENV
       - name: Checkout code
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
