@@ -1,4 +1,4 @@
-ARG OBA_VERSION=2.7.1
+ARG OBA_VERSION=2.7.2
 # Pinned so image contents are reproducible and an upstream compromise of a
 # moving target (@latest) can't silently land in a release. Bump deliberately.
 ARG GTFSTIDY_VERSION=v0.0.0-20260823202512-95d4796d9e7c

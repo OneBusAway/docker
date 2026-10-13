@@ -41,15 +41,17 @@ jobs:
       - name: Guard - oba and bundler scripts identical
         run: diff oba/build_bundle.sh bundler/build_bundle.sh
 
-      # The two images are separate build contexts, so the gtfstidy pin lives in
-      # both Dockerfiles and Dependabot doesn't track it. Catch drift here.
-      - name: Guard - gtfstidy pinned to the same version in both images
+      # The two images are separate build contexts, so the OBA and gtfstidy pins
+      # live in both Dockerfiles and Dependabot doesn't track them. Catch drift here.
+      - name: Guard - OBA and gtfstidy pinned to the same versions in both images
         # grep runs outside a process substitution so a missing pin fails the
         # step instead of comparing two empty outputs and passing.
         run: |
-          oba_pin="$(grep '^ARG GTFSTIDY_VERSION=' oba/Dockerfile)"
-          bundler_pin="$(grep '^ARG GTFSTIDY_VERSION=' bundler/Dockerfile)"
-          [ "$oba_pin" = "$bundler_pin" ] || { echo "oba: $oba_pin"; echo "bundler: $bundler_pin"; exit 1; }
+          for arg in OBA_VERSION GTFSTIDY_VERSION; do
+            oba_pin="$(grep "^ARG ${arg}=" oba/Dockerfile)"
+            bundler_pin="$(grep "^ARG ${arg}=" bundler/Dockerfile)"
+            [ "$oba_pin" = "$bundler_pin" ] || { echo "oba: $oba_pin"; echo "bundler: $bundler_pin"; exit 1; }
+          done
 
       - name: Run script tests
         run: bash bin/build_bundle_test.sh
