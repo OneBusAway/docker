@@ -28,7 +28,7 @@ RUN CGO_ENABLED=0 go build -o hbs_renderer
 # Java Builder #
 ################
 
-FROM tomcat:9.0.122-jdk11-temurin-jammy AS builder
+FROM tomcat:9.0.123-jdk11-temurin-jammy AS builder
 
 ARG OBA_VERSION
 ENV OBA_VERSION=${OBA_VERSION}
@@ -61,7 +61,7 @@ RUN ./retrieve_maven_artifacts.sh
 # Server #
 ##########
 
-FROM tomcat:9.0.122-jdk11-temurin-jammy AS server
+FROM tomcat:9.0.123-jdk11-temurin-jammy AS server
 
 ARG GTFS_TIDY_ARGS
 ENV GTFS_TIDY_ARGS=${GTFS_TIDY_ARGS}
