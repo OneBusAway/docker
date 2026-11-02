@@ -30,9 +30,6 @@ RUN CGO_ENABLED=0 go build -o hbs_renderer
 
 FROM tomcat:9.0.122-jdk11-temurin-jammy AS builder
 
-ARG OBA_VERSION
-ENV OBA_VERSION=${OBA_VERSION}
-
 ARG POSTGRESQL_CONNECTOR_VERSION
 ENV POSTGRESQL_CONNECTOR_VERSION=${POSTGRESQL_CONNECTOR_VERSION}
 
@@ -48,6 +45,8 @@ COPY ./config/settings.xml /root/.m2/settings.xml
 
 # Download and install dependencies - this must be run here because
 # secure args are not available in the next stage
+ARG OBA_VERSION
+ENV OBA_VERSION=${OBA_VERSION}
 RUN mvn -f pom.xml \
     install \
     --batch-mode \
@@ -71,9 +70,6 @@ ENV POSTGRESQL_CONNECTOR_VERSION=${POSTGRESQL_CONNECTOR_VERSION}
 
 ARG MYSQL_CONNECTOR_VERSION
 ENV MYSQL_CONNECTOR_VERSION=${MYSQL_CONNECTOR_VERSION}
-
-ARG OBA_VERSION
-ENV OBA_VERSION=${OBA_VERSION}
 
 ENV CATALINA_HOME=/usr/local/tomcat
 ENV TZ=America/New_York
@@ -118,6 +114,9 @@ RUN groupadd -g $GID $GROUP && \
         $CATALINA_HOME/temp \
         $CATALINA_HOME/work \
         /var/log/tomcat8
+
+ARG OBA_VERSION
+ENV OBA_VERSION=${OBA_VERSION}
 
 ##########
 # Configure OBA Bundle Builder
