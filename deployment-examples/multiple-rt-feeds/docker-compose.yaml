@@ -6,12 +6,10 @@
 # (agency_id 1 = King County Metro, agency_id 3 = Pierce Transit), so the
 # single-feed bundle builder handles it as-is.
 #
-# NOTE: oba_app is built from this repo's ../../oba directory rather than the
-# published opentransitsoftwarefoundation/onebusaway-api-webapp:2.7.1-latest
-# image, because GTFS_RT_FEEDS support is not in a published release yet. Once a
-# 2.7.1 image that understands GTFS_RT_FEEDS is published, an immutable
-# deployment can instead bake these env vars into a Dockerfile FROM that image
-# (see ../immutable for that pattern).
+# NOTE: oba_app runs the published
+# opentransitsoftwarefoundation/onebusaway-api-webapp:2.7.2-latest image, which
+# supports GTFS_RT_FEEDS. An immutable deployment can instead bake these env vars
+# into a Dockerfile FROM that image (see ../immutable for that pattern).
 
 services:
   # One-shot job: builds the consolidated bundle into the shared volume, then exits.
@@ -43,8 +41,7 @@ services:
       # Wait for the bundle build to finish before starting the app.
       oba_bundler:
         condition: service_completed_successfully
-    build:
-      context: ../../oba
+    image: opentransitsoftwarefoundation/onebusaway-api-webapp:2.7.2-latest
     environment:
       - JDBC_URL=jdbc:postgresql://oba_database_pg:5432/oba_database
       - JDBC_DRIVER=org.postgresql.Driver

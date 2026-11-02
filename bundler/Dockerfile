@@ -7,7 +7,7 @@ ARG GTFSTIDY_VERSION=v0.0.0-20260823202512-95d4796d9e7c
 # Go Builder #
 ##############
 
-FROM golang:1.27.1-bookworm AS gobuilder
+FROM golang:1.27.2-bookworm AS gobuilder
 
 ARG GTFSTIDY_VERSION
 
@@ -21,7 +21,7 @@ RUN CGO_ENABLED=0 go install github.com/patrickbr/gtfstidy@${GTFSTIDY_VERSION}
 # Maven #
 #########
 
-FROM tomcat:9.0.122-jdk11-temurin-jammy AS builder
+FROM tomcat:9.0.123-jdk11-temurin-jammy AS builder
 
 RUN apt-get update && apt-get install -y maven
 

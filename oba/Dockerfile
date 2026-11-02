@@ -9,7 +9,7 @@ ARG GTFSTIDY_VERSION=v0.0.0-20260823202512-95d4796d9e7c
 # Go Builder #
 ##############
 
-FROM golang:1.27.1-bookworm AS gobuilder
+FROM golang:1.27.2-bookworm AS gobuilder
 
 ARG GTFSTIDY_VERSION
 
@@ -28,7 +28,7 @@ RUN CGO_ENABLED=0 go build -o hbs_renderer
 # Java Builder #
 ################
 
-FROM tomcat:9.0.122-jdk11-temurin-jammy AS builder
+FROM tomcat:9.0.123-jdk11-temurin-jammy AS builder
 
 ARG POSTGRESQL_CONNECTOR_VERSION
 ENV POSTGRESQL_CONNECTOR_VERSION=${POSTGRESQL_CONNECTOR_VERSION}
@@ -60,7 +60,7 @@ RUN ./retrieve_maven_artifacts.sh
 # Server #
 ##########
 
-FROM tomcat:9.0.122-jdk11-temurin-jammy AS server
+FROM tomcat:9.0.123-jdk11-temurin-jammy AS server
 
 ARG GTFS_TIDY_ARGS
 ENV GTFS_TIDY_ARGS=${GTFS_TIDY_ARGS}
