@@ -45,12 +45,11 @@ so the two protobuf streams line up with agencies `1` and `3` in the bundle:
 ]
 ```
 
-> **Note:** `oba_app` is built from this repository's `../../oba` directory, not
-> the published `opentransitsoftwarefoundation/onebusaway-api-webapp:2.7.1-latest`
-> image, because `GTFS_RT_FEEDS` support is not in a published release yet. Once a
-> 2.7.1 image that understands `GTFS_RT_FEEDS` is published, an immutable
-> deployment can bake these env vars into a `Dockerfile` that is `FROM` that
-> image instead — see [`../immutable`](../immutable) for that pattern.
+> **Note:** `oba_app` runs the published
+> `opentransitsoftwarefoundation/onebusaway-api-webapp:2.7.2-latest` image, which
+> supports `GTFS_RT_FEEDS`. An immutable deployment can bake these env vars into a
+> `Dockerfile` that is `FROM` that image instead. See [`../immutable`](../immutable)
+> for that pattern.
 
 ## Running it
 
