@@ -22,8 +22,6 @@ RUN CGO_ENABLED=0 go install github.com/patrickbr/gtfstidy@${GTFSTIDY_VERSION}
 #########
 
 FROM tomcat:9.0.123-jdk11-temurin-jammy AS builder
-ARG OBA_VERSION
-ENV OBA_VERSION=${OBA_VERSION}
 
 RUN apt-get update && apt-get install -y maven
 
@@ -32,6 +30,8 @@ WORKDIR /oba
 COPY ./pom.xml ./pom.xml
 COPY ./settings.xml /root/.m2/settings.xml
 
+ARG OBA_VERSION
+ENV OBA_VERSION=${OBA_VERSION}
 RUN mkdir libs && \
     mvn org.apache.maven.plugins:maven-dependency-plugin:3.2.0:get \
     --batch-mode \
@@ -45,8 +45,6 @@ RUN mkdir libs && \
 
 # The bundler only needs a JVM, not a servlet container.
 FROM eclipse-temurin:11.0.32_9-jre-jammy
-ARG OBA_VERSION
-ENV OBA_VERSION=${OBA_VERSION}
 
 RUN apt-get update && apt-get install -y --no-install-recommends jq unzip wget zip \
     && rm -rf /var/lib/apt/lists/*
@@ -58,6 +56,9 @@ ARG GROUP=oba_group
 ARG USER=oba_user
 RUN groupadd -g $GID $GROUP && \
     useradd -d /home/$USER -u $UID -m -s /bin/bash -g $GROUP $USER
+
+ARG OBA_VERSION
+ENV OBA_VERSION=${OBA_VERSION}
 
 # Start configuring OBA
 WORKDIR /oba
