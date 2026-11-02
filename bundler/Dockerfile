@@ -21,7 +21,7 @@ RUN CGO_ENABLED=0 go install github.com/patrickbr/gtfstidy@${GTFSTIDY_VERSION}
 # Maven #
 #########
 
-FROM tomcat:9.0.122-jdk11-temurin-jammy AS builder
+FROM tomcat:9.0.123-jdk11-temurin-jammy AS builder
 ARG OBA_VERSION
 ENV OBA_VERSION=${OBA_VERSION}
 
