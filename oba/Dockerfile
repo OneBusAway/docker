@@ -1,4 +1,4 @@
-ARG OBA_VERSION=2.7.2
+ARG OBA_VERSION=2.7.3
 ARG POSTGRESQL_CONNECTOR_VERSION=42.7.4
 ARG MYSQL_CONNECTOR_VERSION=8.4.0
 # Pinned so image contents are reproducible and an upstream compromise of a
