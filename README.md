@@ -121,6 +121,7 @@ The images are built to be safe by default, but a few things are the operator's 
   * `TRIP_UPDATES_URL` - Trip Updates URL for GTFS-RT.
   * `VEHICLE_POSITIONS_URL` - Vehicle Positions URL for GTFS-RT.
   * `REFRESH_INTERVAL` - Refresh interval in seconds. Usually 10-30.
+  * `GTFS_CONNECT_TIMEOUT_MS` / `GTFS_READ_TIMEOUT_MS` - Optional: connect and per-read timeouts for GTFS-RT and alerts fetches, in milliseconds (defaults 10000 / 30000). All feeds share one fetch thread, so a feed that hangs delays realtime for every agency on the server until the timeout fires.
   * Specify one or the other:
     * `AGENCY_ID_LIST` - Your GTFS-RT agency IDs. These should match the IDs in your agency.txt file. Format: `["id1","id2"]`
     * `AGENCY_ID` - Optional: Your GTFS-RT agency ID. Ostensibly the same as your GTFS agency ID.
