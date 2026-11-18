@@ -207,12 +207,14 @@ RUN mkdir -p /app && \
     echo "${JMX_EXPORTER_SHA256}  /app/jmx_prometheus_javaagent.jar" | sha256sum -c -
 COPY ./jmx_exporter_config.yml /app/jmx_exporter_config.yml
 
-# JVM options: the JMX exporter agent, plus connect/read timeouts (ms) for
-# GTFS-RT and alerts fetches. OBA runs every GTFS-RT source on one shared
-# scheduler thread and leaves URLConnection timeouts unset (infinite) unless
-# these properties exist, so one upstream socket that never answers freezes
-# realtime for every agency on the server until Tomcat restarts.
-ENV JAVA_OPTS="-javaagent:/app/jmx_prometheus_javaagent.jar=1234:/app/jmx_exporter_config.yml -Dgtfs.connect_timeout=10000 -Dgtfs.read_timeout=30000"
+# Set JVM options to include JMX exporter
+ENV JAVA_OPTS="-javaagent:/app/jmx_prometheus_javaagent.jar=1234:/app/jmx_exporter_config.yml"
+
+# GTFS-RT/alerts fetch connect/read timeouts. Appended to CATALINA_OPTS by
+# setenv.sh (not baked into JAVA_OPTS) so a deployment that sets its own
+# JAVA_OPTS or CATALINA_OPTS for heap sizing can't silently drop them. Tune with
+# GTFS_CONNECT_TIMEOUT_MS / GTFS_READ_TIMEOUT_MS; see config/setenv.sh.
+COPY ./config/setenv.sh $CATALINA_HOME/bin/setenv.sh
 
 # Hardened Tomcat configuration: public API connector on 8080, the federation
 # webapp (internal remoting interface) on a loopback-only connector,
