@@ -26,6 +26,16 @@ STOP_CONSOLIDATION_URL=${STOP_CONSOLIDATION_URL:-}
 OBA_VERSION=${OBA_VERSION:-}
 TDF_BUILDER_JAR=${TDF_BUILDER_JAR:-/oba/libs/onebusaway-transit-data-federation-builder-withAllDependencies.jar}
 
+# Extra arguments for the bundle builder, split on whitespace. The default
+# raises DistanceAlongShapeLibrary's limit on stop-to-shape assignment
+# combinations (1,000). Round-trip shapes on two-way streets give each stop two
+# candidate positions, so about 10 such stops in sequence exceed the limit. The
+# builder then silently uses straight-line stop-to-stop distances, and vehicles
+# are drawn behind their true position (up to kilometres). Set to an empty
+# string to pass no extra arguments.
+BUNDLE_BUILDER_ARGS=${BUNDLE_BUILDER_ARGS-"-PdistanceAlongShapeLibrary.maximumNumberOfPotentialAssignment=2147483647"}
+read -r -a BUNDLE_BUILDER_ARGV <<< "$BUNDLE_BUILDER_ARGS"
+
 # Run gtfstidy (https://github.com/patrickbr/gtfstidy) with the following options enabled by default:
 # -O: remove entities that are not referenced anywhere
 # -s: minimize shapes (using Douglas-Peucker)
@@ -256,6 +266,7 @@ run_single_mode() {
     echo "OBA Version: $OBA_VERSION"
     echo "GTFS Tidy Args: $GTFS_TIDY_ARGS"
     echo "TDF_BUILDER_JAR: $TDF_BUILDER_JAR"
+    echo "Bundle builder args: $BUNDLE_BUILDER_ARGS"
 
     cd "$BUNDLE_DIR"
 
@@ -288,7 +299,7 @@ run_single_mode() {
 
     # The JAR must be executed from within the same directory
     # as the bundle, or else some necessary files are not generated.
-    java -Xss4m -Xmx3g -jar "$TDF_BUILDER_JAR" ./"${GTFS_ZIP_FILENAME}" ${context_args[@]+"${context_args[@]}"} .
+    java -Xss4m -Xmx3g -jar "$TDF_BUILDER_JAR" ${BUNDLE_BUILDER_ARGV[@]+"${BUNDLE_BUILDER_ARGV[@]}"} ./"${GTFS_ZIP_FILENAME}" ${context_args[@]+"${context_args[@]}"} .
 }
 
 run_multi_mode() {
@@ -296,6 +307,7 @@ run_multi_mode() {
     echo "Multi-input mode: BUNDLE_INPUTS_URL: $BUNDLE_INPUTS_URL"
     echo "OBA Version: $OBA_VERSION"
     echo "TDF_BUILDER_JAR: $TDF_BUILDER_JAR"
+    echo "Bundle builder args: $BUNDLE_BUILDER_ARGS"
     echo "gtfstidy: skipped in multi-input mode (parity with the legacy multi-feed build)"
 
     mkdir -p "$BUNDLE_DIR"
@@ -313,7 +325,7 @@ run_multi_mode() {
     # context path by FederatedTransitDataBundleCreatorMain; "." is the output dir.
     # The JAR must be executed from within the same directory as the bundle,
     # or else some necessary files are not generated.
-    java -Xss4m -Xmx3g -jar "$TDF_BUILDER_JAR" bundle-context.xml .
+    java -Xss4m -Xmx3g -jar "$TDF_BUILDER_JAR" ${BUNDLE_BUILDER_ARGV[@]+"${BUNDLE_BUILDER_ARGV[@]}"} bundle-context.xml .
 
     # MAPPING_PATH already lives at $BUNDLE_DIR/StopConsolidation.txt — the
     # hardcoded name ConsolidatedStopsServiceImpl reads at runtime. Assert it
