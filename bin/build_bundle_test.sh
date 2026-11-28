@@ -45,6 +45,16 @@ assert_contains() {
     fi
 }
 
+assert_not_contains() {
+    local haystack="$1" needle="$2" label="$3"
+    if printf '%s' "$haystack" | grep -qF -- "$needle"; then
+        fail "$label — did not expect to find: $needle"
+        printf 'GOT:\n%s\n' "$haystack"
+    else
+        pass "$label"
+    fi
+}
+
 echo "=== build_bundle.sh unit tests ==="
 
 # --- Mode validation: existing single-mode errors preserved -----------------
@@ -95,8 +105,25 @@ run_script "$STUBS" STUB_LOG="$STUB_LOG" BUNDLE_DIR="$WORK" \
 [ "$RUN_STATUS" -eq 0 ] && pass "single mode (stubbed) exits 0" || fail "single mode (stubbed) exits 0: $RUN_OUTPUT"
 assert_contains "$(cat "$STUB_LOG")" "wget $WORK/gtfs_pristine.zip" "single mode downloads to gtfs_pristine.zip"
 assert_contains "$(cat "$STUB_LOG")" "gtfstidy" "single mode still runs gtfstidy"
-assert_contains "$(cat "$STUB_LOG")" "java -Xss4m -Xmx3g -jar /fake/builder.jar ./gtfs_pristine.zip ." "single mode builder argv unchanged"
+assert_contains "$(cat "$STUB_LOG")" "java -Xss4m -Xmx3g -jar /fake/builder.jar -PdistanceAlongShapeLibrary.maximumNumberOfPotentialAssignment=2147483647 ./gtfs_pristine.zip ." "single mode builder argv (default builder args)"
 assert_contains "$(cat "$STUB_LOG")" "cwd $WORK" "builder runs from bundle dir"
+
+# BUNDLE_BUILDER_ARGS="" passes no extra builder arguments.
+: > "$STUB_LOG"
+run_script "$STUBS" STUB_LOG="$STUB_LOG" BUNDLE_DIR="$WORK" \
+    GTFS_URL=http://example.test/gtfs.zip TDF_BUILDER_JAR=/fake/builder.jar OBA_VERSION=test \
+    BUNDLE_BUILDER_ARGS=
+[ "$RUN_STATUS" -eq 0 ] && pass "empty BUNDLE_BUILDER_ARGS exits 0" || fail "empty BUNDLE_BUILDER_ARGS exits 0: $RUN_OUTPUT"
+assert_contains "$(cat "$STUB_LOG")" "java -Xss4m -Xmx3g -jar /fake/builder.jar ./gtfs_pristine.zip ." "empty BUNDLE_BUILDER_ARGS gives the plain builder argv"
+
+# A custom BUNDLE_BUILDER_ARGS is split on whitespace and replaces the default.
+: > "$STUB_LOG"
+run_script "$STUBS" STUB_LOG="$STUB_LOG" BUNDLE_DIR="$WORK" \
+    GTFS_URL=http://example.test/gtfs.zip TDF_BUILDER_JAR=/fake/builder.jar OBA_VERSION=test \
+    "BUNDLE_BUILDER_ARGS=-Pa.b=1 -Pc.d=2"
+[ "$RUN_STATUS" -eq 0 ] && pass "custom BUNDLE_BUILDER_ARGS exits 0" || fail "custom BUNDLE_BUILDER_ARGS exits 0: $RUN_OUTPUT"
+assert_contains "$(cat "$STUB_LOG")" "java -Xss4m -Xmx3g -jar /fake/builder.jar -Pa.b=1 -Pc.d=2 ./gtfs_pristine.zip ." "custom BUNDLE_BUILDER_ARGS are passed as separate arguments"
+assert_not_contains "$(cat "$STUB_LOG")" "maximumNumberOfPotentialAssignment" "custom BUNDLE_BUILDER_ARGS replace the default"
 
 # --- Failed download now aborts (set -e hardening) ---------------------------
 
@@ -315,7 +342,7 @@ MULTI_STATUS=$?
 MULTI_OUTPUT="$(cat "$WORK4/run.out")"
 
 [ "$MULTI_STATUS" -eq 0 ] && pass "multi mode (stubbed) exits 0" || fail "multi mode (stubbed) exits 0: $MULTI_OUTPUT"
-assert_contains "$(cat "$STUB_LOG")" "java -Xss4m -Xmx3g -jar /fake/builder.jar bundle-context.xml ." "multi mode builder argv"
+assert_contains "$(cat "$STUB_LOG")" "java -Xss4m -Xmx3g -jar /fake/builder.jar -PdistanceAlongShapeLibrary.maximumNumberOfPotentialAssignment=2147483647 bundle-context.xml ." "multi mode builder argv (default builder args)"
 assert_contains "$(cat "$STUB_LOG")" "cwd $WORK4" "multi mode builder cwd is bundle dir"
 if grep -q "gtfstidy WAS CALLED" "$STUB_LOG"; then
     fail "multi mode must not run gtfstidy"
@@ -367,7 +394,7 @@ SC_STATUS=$?
 [ "$SC_STATUS" -eq 0 ] && pass "single mode + consolidation exits 0" || fail "single mode + consolidation exits 0: $(cat "$WORK5/run.out")"
 [ -f "$WORK5/StopConsolidation.txt" ] && pass "single mode downloads mapping" || fail "single mode downloads mapping"
 [ -f "$WORK5/consolidation-context.xml" ] && pass "single mode writes consolidation-context.xml" || fail "single mode writes consolidation-context.xml"
-assert_contains "$(cat "$STUB_LOG")" "java -Xss4m -Xmx3g -jar /fake/builder.jar ./gtfs_pristine.zip consolidation-context.xml ." "single mode consolidation builder argv"
+assert_contains "$(cat "$STUB_LOG")" "java -Xss4m -Xmx3g -jar /fake/builder.jar -PdistanceAlongShapeLibrary.maximumNumberOfPotentialAssignment=2147483647 ./gtfs_pristine.zip consolidation-context.xml ." "single mode consolidation builder argv"
 if grep -q "entityReplacementStrategy" "$WORK5/consolidation-context.xml" && ! grep -q "gtfs-bundles" "$WORK5/consolidation-context.xml"; then
     pass "consolidation-context.xml has replacement beans only"
 else
